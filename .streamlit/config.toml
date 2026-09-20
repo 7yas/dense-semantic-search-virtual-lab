@@ -1,11 +1,19 @@
+[theme]
+base = "light"
+primaryColor = "#2696D2"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F5F5F5"
+textColor = "#222222"
+font = "sans serif"
+
 [server]
-# Disables the local file watcher. This is what was scanning every
-# installed package (including transformers' torchvision-dependent
-# submodules) on every rerun, printing the ModuleNotFoundError spam
-# in your terminal and contributing to the flaky re-render behaviour.
-# You will just need to manually refresh the browser after editing
-# app.py, instead of relying on auto-reload.
+# Disables the local file watcher.
 fileWatcherType = "none"
+
+# Server configuration
+headless = true
+enableCORS = false
+enableXsrfProtection = true
 
 [browser]
 gatherUsageStats = false
