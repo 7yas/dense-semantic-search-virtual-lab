@@ -1,0 +1,11 @@
+[server]
+# Disables the local file watcher. This is what was scanning every
+# installed package (including transformers' torchvision-dependent
+# submodules) on every rerun, printing the ModuleNotFoundError spam
+# in your terminal and contributing to the flaky re-render behaviour.
+# You will just need to manually refresh the browser after editing
+# app.py, instead of relying on auto-reload.
+fileWatcherType = "none"
+
+[browser]
+gatherUsageStats = false
