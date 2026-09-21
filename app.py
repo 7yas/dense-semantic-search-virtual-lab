@@ -7,7 +7,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 import plotly.express as px
 
 from sentence_transformers import SentenceTransformer
@@ -44,53 +43,13 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 # it reaches the parser, so it is emitted as real HTML every time.
 
 def render_html(markup):
-    """Render HTML without allowing Streamlit Markdown to expose source code.
-
-    Streamlit Markdown is useful for short snippets, but large HTML documents
-    containing <style> blocks can be displayed as literal text depending on
-    the Streamlit version. The animation is therefore always rendered inside
-    a dedicated HTML component/iframe.
-    """
-    if not isinstance(markup, str):
-        markup = str(markup)
-
-    # The source contains doubled braces in f-string CSS templates. Convert
-    # them only once, before sending the final HTML to the browser.
-    markup = markup.replace("{{", "{").replace("}}", "}")
-
-    is_animation = (
-        "mock-scene" in markup
-        or "mock-lab-intro" in markup
-        or "SEMANTIC SEARCH WORKFLOW" in markup
+    cleaned = " ".join(
+        line.strip()
+        for line in markup.strip().splitlines()
+        if line.strip()
     )
 
-    if is_animation:
-        # Use a complete HTML document. This prevents Streamlit's Markdown
-        # parser from treating the CSS/HTML as a code block.
-        document = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin:0;background:#ffffff;">
-{markup}
-</body>
-</html>"""
-        components.html(document, height=900, scrolling=False)
-        return
-
-    # Global CSS must remain in the parent Streamlit page, so do not put
-    # style-only snippets inside an iframe.
-    if hasattr(st, "html"):
-        st.html(markup)
-    else:
-        cleaned = " ".join(
-            line.strip()
-            for line in markup.strip().splitlines()
-            if line.strip()
-        )
-        st.markdown(cleaned, unsafe_allow_html=True)
+    st.markdown(cleaned, unsafe_allow_html=True)
 
 
 def to_html_paragraphs(text):
@@ -2085,892 +2044,354 @@ def render_procedure():
 
 
 # ============================================================
-# SIMULATION: DATASET PANEL
+# REDESIGNED INTERACTIVE SEMANTIC SEARCH SIMULATION
 # ============================================================
 
+SIMULATION_STAGES = [
+    "Document Collection",
+    "Text Processing",
+    "Dense Embeddings",
+    "Vector Collection",
+    "User Query",
+    "Query Embedding",
+    "Cosine Similarity",
+    "Ranking",
+    "Top-K Results",
+]
+
+
+def sim_header(title, description=None):
+    st.markdown(f"### {title}")
+    if description:
+        st.caption(description)
+
+
+def sim_stage_strip(active_stage):
+    cols = st.columns(len(SIMULATION_STAGES))
+    for idx, (col, stage_name) in enumerate(zip(cols, SIMULATION_STAGES)):
+        with col:
+            if idx < active_stage:
+                st.success(f"✓ {idx + 1}")
+            elif idx == active_stage:
+                st.info(f"● {idx + 1}")
+            else:
+                st.caption(f"○ {idx + 1}")
+            st.caption(stage_name)
+
+
+def sim_document_card(row):
+    with st.container(border=True):
+        st.markdown(f"**{row['id']} · {row['title']}**")
+        st.caption(f"{row['category']} · {row.get('source', 'Document Collection')}")
+        preview = str(row['content']).replace("\n", " ")
+        st.write(preview[:170] + ("…" if len(preview) > 170 else ""))
+
+
 def render_dataset_panel(documents_df, source_label):
-    render_html('<div class="content-subheading">1. Document Collection</div>')
+    sim_header(
+        "1. Document Collection",
+        "A small representative preview is shown while the full collection is retained for real embedding generation.",
+    )
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Total documents", len(documents_df))
+    c2.metric("Categories", documents_df["category"].nunique())
+    c3.metric("Average words", int(documents_df["word_count"].mean()))
+    c4.metric("Sources", documents_df["source"].nunique())
+    st.caption(f"Collection source: {source_label}")
 
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Documents", len(documents_df))
-    col2.metric("Categories", documents_df["category"].nunique())
-    col3.metric("Average Words", int(documents_df["word_count"].mean()))
-    col4.metric("Sources", documents_df["source"].nunique())
+    preview_count = min(6, len(documents_df))
+    preview_df = documents_df.head(preview_count)
+    card_cols = st.columns(3)
+    for index, (_, row) in enumerate(preview_df.iterrows()):
+        with card_cols[index % 3]:
+            sim_document_card(row)
 
-    st.caption(f"Dataset loaded from: {source_label}")
-
-    with st.expander("Browse the document collection", expanded=False):
+    with st.expander("Browse the complete document collection"):
         categories = ["All categories"] + sorted(documents_df["category"].unique().tolist())
-
-        selected = st.selectbox("Filter by category", categories, key="dataset_category_filter")
-        keyword = st.text_input("Filter by keyword in title or content", key="dataset_keyword_filter")
-
+        selected = st.selectbox("Filter by category", categories, key="sim_category_filter")
+        keyword = st.text_input("Search titles or content", key="sim_keyword_filter")
         view = documents_df
-
         if selected != "All categories":
             view = view[view["category"] == selected]
-
         if keyword.strip():
-            mask = view["title"].str.contains(keyword, case=False, na=False) | view[
-                "content"
-            ].str.contains(keyword, case=False, na=False)
+            mask = view["title"].str.contains(keyword, case=False, na=False) | view["content"].str.contains(keyword, case=False, na=False)
             view = view[mask]
-
-        st.caption(f"Showing {len(view)} of {len(documents_df)} documents.")
-        st.dataframe(view, use_container_width=True, hide_index=True, height=340)
-
+        st.dataframe(view, use_container_width=True, hide_index=True, height=320)
         st.download_button(
-            "Download Document Collection (CSV)",
+            "Download document collection",
             data=documents_df.to_csv(index=False),
             file_name="document_collection.csv",
             mime="text/csv",
+            key="download_sim_documents",
         )
 
-    with st.expander("Add your own documents", expanded=False):
-        st.write(
-            "Upload a CSV (columns: id, title, category, content), a JSON array of "
-            "objects, or a TXT file where each blank-line-separated block is one "
-            "document. Uploaded documents are appended to the default collection."
-        )
-
-        uploaded_file = st.file_uploader(
-            "Upload a document dataset",
-            type=["csv", "txt", "json"],
-            key="dataset_uploader",
-        )
-
-        upload_col, clear_col = st.columns(2)
-
-        with upload_col:
-            if st.button("Add Uploaded Documents", use_container_width=True):
+    with st.expander("Add your own documents"):
+        st.write("Upload CSV, JSON, or TXT documents. Uploaded documents are appended to the default collection.")
+        uploaded_file = st.file_uploader("Upload document dataset", type=["csv", "json", "txt"], key="sim_dataset_uploader")
+        a, b = st.columns(2)
+        with a:
+            if st.button("Add uploaded documents", use_container_width=True, key="sim_add_upload"):
                 if uploaded_file is None:
                     st.warning("Please choose a file first.")
                 else:
                     try:
-                        parsed = parse_uploaded_file(uploaded_file)
-                        st.session_state.uploaded_documents = parsed
+                        st.session_state.uploaded_documents = parse_uploaded_file(uploaded_file)
                         st.session_state.index_built = False
-                        st.session_state.upload_message = (
-                            f"Added {len(parsed)} documents from {uploaded_file.name}. "
-                            "Rebuild the embedding index to search them."
-                        )
+                        st.session_state.upload_message = f"Added {len(st.session_state.uploaded_documents)} documents. Rebuild the index to include them."
+                        st.rerun()
                     except Exception as error:
-                        st.session_state.upload_message = ""
                         st.error(f"Could not read the file: {error}")
-
-        with clear_col:
-            if st.button("Remove Uploaded Documents", use_container_width=True):
+        with b:
+            if st.button("Remove uploaded documents", use_container_width=True, key="sim_remove_upload"):
                 st.session_state.uploaded_documents = None
                 st.session_state.index_built = False
                 st.session_state.upload_message = "Uploaded documents removed."
-
-        if st.session_state.upload_message:
+                st.rerun()
+        if st.session_state.get("upload_message"):
             st.info(st.session_state.upload_message)
 
 
-# ============================================================
-# SIMULATION: STAGE A WITH LIVE VISUALISATION
-# ============================================================
+def render_preprocessing_stage(documents_df):
+    sim_header("2. Text Processing", "Raw text is normalized into a consistent representation before encoding.")
+    row = documents_df.iloc[0]
+    raw_text = str(row["content"])
+    normalized = " ".join(raw_text.lower().split())
+    tokens = normalized.split()
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown("**Raw Text**")
+        st.info(raw_text[:260])
+    with c2:
+        st.markdown("**Tokenization / Normalization**")
+        st.info(" · ".join(tokens[:18]) + (" …" if len(tokens) > 18 else ""))
+    with c3:
+        st.markdown("**Processed Text**")
+        st.success(normalized[:260])
+    st.progress(1.0, text=f"Processed preview: {len(tokens)} tokens · Full collection: {len(documents_df)} documents")
 
-def run_live_indexing(documents_df, live, batch_size=16, pause=0.15):
-    """Encode the collection batch by batch, showing every step as it happens."""
-    model_placeholder = st.empty()
-    pipeline_placeholder = st.empty()
-    log_placeholder = st.empty()
-    progress_placeholder = st.empty()
-    metric_placeholder = st.empty()
-    preview_placeholder = st.empty()
 
-    logs = []
-
-    def log(message, style="log-run"):
-        logs.append(f'<span class="{style}">{message}</span>')
-        if live:
-            log_placeholder.markdown(log_markup(logs[-14:]), unsafe_allow_html=True)
-
-    def stage(active):
-        if live:
-            pipeline_placeholder.markdown(
-                pipeline_markup(INDEX_STAGES, active), unsafe_allow_html=True
-            )
-
-    start = time.perf_counter()
-
-    # ---- Stage 0: documents ----
-    stage(0)
-    log(f"[1/5] Reading document collection ... {len(documents_df)} documents loaded.")
-    if live:
-        time.sleep(pause)
-
-    # ---- Stage 1: preprocessing ----
-    stage(1)
-    texts = documents_df["content"].astype(str).tolist()
-    total_words = int(documents_df["word_count"].sum())
-    log(f"[2/5] Preprocessing text ... {total_words} words, {len(texts)} passages queued.")
-
-    if live:
-        sample = pd.DataFrame(
-            {
-                "id": documents_df["id"].head(5),
-                "characters": [len(t) for t in texts[:5]],
-                "words": [len(t.split()) for t in texts[:5]],
-                "first tokens": [" | ".join(t.split()[:8]) + " ..." for t in texts[:5]],
-            }
-        )
-        preview_placeholder.dataframe(sample, use_container_width=True, hide_index=True)
-        time.sleep(pause)
-
-    # ---- Stage 2: model ----
-    stage(2)
-    log(f"[3/5] Loading SentenceTransformer model '{MODEL_NAME}' ...")
-    if live:
-        model_placeholder.caption("Loading the transformer (cached after the first run).")
-
+def render_embedding_stage(documents_df, embeddings):
+    sim_header("3. Dense Embeddings", "SentenceTransformer maps each document into a fixed-length numerical vector.")
     model = load_embedding_model()
-    log("      Model ready. Tokenizer and 6 transformer layers initialised.", "log-ok")
-    if live:
-        model_placeholder.empty()
+    dimension = int(embeddings.shape[1])
+    sample_text = str(documents_df.iloc[0]["content"])
+    sample_vector = embeddings[0]
+    st.markdown("**Document Text → SentenceTransformer → Numerical Vector**")
+    flow_cols = st.columns([2, 1, 2, 1, 3])
+    with flow_cols[0]:
+        st.info(sample_text[:180] + "…")
+    with flow_cols[1]:
+        st.markdown("### →")
+    with flow_cols[2]:
+        st.success(f"**{MODEL_NAME}**\n\nTransformer encoder")
+    with flow_cols[3]:
+        st.markdown("### →")
+    with flow_cols[4]:
+        st.code("[" + ", ".join(f"{v:.2f}" for v in sample_vector[:5]) + ", ...]", language="text")
+        st.caption(f"Actual dimension: {dimension}")
+    st.info("A SentenceTransformer model converts text into a numerical vector that represents its semantic meaning.")
+    vector_df = pd.DataFrame({"Dimension": [f"d{i}" for i in range(min(24, dimension))], "Value": sample_vector[:min(24, dimension)]})
+    fig = px.bar(vector_df, x="Dimension", y="Value", title=f"First {len(vector_df)} dimensions of a document embedding")
+    fig.update_layout(height=300, margin=dict(l=10, r=10, t=50, b=10))
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(f"Loaded model: {model.__class__.__name__} · Embedding dimension: {dimension}")
 
-    # ---- Stage 3: encoding ----
-    stage(3)
-    log(f"[4/5] Encoding documents in batches of {batch_size} ...")
 
-    progress = progress_placeholder.progress(0.0) if live else None
-
-    chunks = []
-    encoded = 0
-
-    for start_index in range(0, len(texts), batch_size):
-        batch = texts[start_index:start_index + batch_size]
-
-        vectors = model.encode(
-            batch,
-            convert_to_numpy=True,
-            normalize_embeddings=True,
-            show_progress_bar=False,
+def render_vector_collection_stage(documents_df, embeddings):
+    sim_header("4. Vector Collection", "Document vectors are stored in memory and reused for every query.")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Vectors stored", embeddings.shape[0])
+    c2.metric("Embedding dimension", embeddings.shape[1])
+    c3.metric("Matrix shape", f"{embeddings.shape[0]} × {embeddings.shape[1]}")
+    c4.metric("Collection status", "Ready")
+    st.success("Vector collection ready for semantic comparison.")
+    st.write("This implementation stores document vectors in memory. It directly compares the query vector with the stored matrix when a specialized vector database is not used.")
+    with st.expander("Inspect stored vectors"):
+        st.dataframe(
+            pd.DataFrame(embeddings[:5, :min(12, embeddings.shape[1])], index=documents_df["id"].head(5), columns=[f"d{i}" for i in range(min(12, embeddings.shape[1]))]).round(4),
+            use_container_width=True,
         )
 
-        chunks.append(vectors)
-        encoded += len(batch)
 
-        if live:
-            progress.progress(encoded / len(texts))
-
-            log(
-                f"      batch {len(chunks):>3} | documents {encoded}/{len(texts)}"
-                f" | vector shape {vectors.shape}"
-            )
-
-            running = np.vstack(chunks)
-
-            metric_placeholder.markdown(
-                f"**Encoded:** {encoded}/{len(texts)} &nbsp;&nbsp;|&nbsp;&nbsp; "
-                f"**Index shape:** {running.shape} &nbsp;&nbsp;|&nbsp;&nbsp; "
-                f"**Mean vector norm:** {np.linalg.norm(running, axis=1).mean():.3f}"
-            )
-
-            preview_placeholder.dataframe(
-                pd.DataFrame(
-                    vectors[: min(3, len(vectors)), :12].round(4),
-                    index=documents_df["id"].iloc[start_index:start_index + min(3, len(vectors))],
-                    columns=[f"d{i}" for i in range(12)],
-                ),
-                use_container_width=True,
-            )
-
-            time.sleep(pause / 2)
-
-    embeddings = np.vstack(chunks)
-
-    # ---- Stage 4: index ----
-    stage(4)
-    elapsed = time.perf_counter() - start
-    log(
-        f"[5/5] Embedding index built: {embeddings.shape[0]} vectors x "
-        f"{embeddings.shape[1]} dimensions in {elapsed:.2f} s.",
-        "log-ok",
-    )
-
-    if live:
-        pipeline_placeholder.markdown(
-            pipeline_markup(INDEX_STAGES, len(INDEX_STAGES)), unsafe_allow_html=True
-        )
-        progress_placeholder.empty()
-
-    store_index(embeddings, documents_df, elapsed)
-
-    return embeddings
-
-
-def render_embedding_map(embeddings, documents_df):
-    points = pca_projection(embeddings)
-
-    frame = pd.DataFrame(
-        {
-            "x": points[:, 0],
-            "y": points[:, 1],
-            "Title": documents_df["title"],
-            "Category": documents_df["category"],
-        }
-    )
-
-    figure = px.scatter(
-        frame,
-        x="x",
-        y="y",
-        color="Category",
-        hover_name="Title",
-        title="Embedding space (PCA projection of the index to 2 dimensions)",
-    )
-
-    figure.update_layout(height=470, xaxis_title="Component 1", yaxis_title="Component 2")
-    figure.update_traces(marker={"size": 9, "opacity": 0.8})
-
-    st.plotly_chart(figure, use_container_width=True)
-
-    st.caption(
-        "Each point is one document vector. Documents from the same subject area "
-        "form clusters, which is the property cosine similarity exploits at query time."
-    )
-
-
-def render_indexing_panel(documents_df, live):
-    render_html('<div class="stage-label">STAGE A</div>')
-    render_html('<div class="content-subheading">2. Document Indexing (live)</div>')
-
-    if not index_is_current(documents_df):
-        render_html(
-            """
-            <div class="info-box">
-                The embedding index is not up to date with the current document
-                collection. Build the index before running a search.
-            </div>
-            """
-        )
-        render_pipeline(INDEX_STAGES, 0)
-
-    if st.button("Build Embedding Index", use_container_width=True):
-        run_live_indexing(documents_df, live)
-        st.session_state.last_results = []
-        st.success("Embedding index created successfully.")
-
-    if index_is_current(documents_df):
-        embeddings = st.session_state.document_embeddings
-
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Documents Indexed", embeddings.shape[0])
-        col2.metric("Embedding Dimension", embeddings.shape[1])
-        col3.metric("Index Build Time", f"{st.session_state.index_build_time:.2f} sec")
-        col4.metric("Index Status", "Ready")
-
-        with st.expander("View Embedding Details"):
-            st.write(f"**Model:** {MODEL_NAME}")
-            st.write(f"**Number of documents:** {embeddings.shape[0]}")
-            st.write(f"**Embedding dimension:** {embeddings.shape[1]}")
-            st.write("**Embedding type:** Dense floating-point vector (L2 normalised)")
-            st.write(f"**Index memory:** {embeddings.nbytes / 1024:.1f} KB")
-
-            st.caption(
-                f"First 5 documents, first 16 of {embeddings.shape[1]} dimensions."
-            )
-
-            st.dataframe(
-                pd.DataFrame(
-                    embeddings[:5, :16].round(4),
-                    index=st.session_state.indexed_documents["id"].head(5),
-                    columns=[f"d{i}" for i in range(16)],
-                ),
-                use_container_width=True,
-            )
-
-        with st.expander("View the embedding space map", expanded=False):
-            render_embedding_map(embeddings, st.session_state.indexed_documents)
-
-
-# ============================================================
-# SIMULATION: STAGE B WITH LIVE VISUALISATION
-# ============================================================
-
-
-
-def render_mock_semantic_animation():
-    """Light-theme, coherent educational semantic-search animation using illustrative data."""
-    mock_query = "How can machines learn patterns from data?"
-    mock_docs = [
-        {"id": "D01", "title": "Introduction to Artificial Intelligence", "category": "AI", "preview": "Computers learn patterns from examples.", "score": 0.94},
-        {"id": "D02", "title": "Machine Learning Algorithms", "category": "Machine Learning", "preview": "Supervised models learn from labelled data.", "score": 0.88},
-        {"id": "D03", "title": "Computer Networks", "category": "Networking", "preview": "Devices exchange data through connected systems.", "score": 0.32},
-        {"id": "D04", "title": "Database Management Systems", "category": "Database", "preview": "Databases organize and retrieve structured data.", "score": 0.27},
-    ]
-
-    if "mock_stage" not in st.session_state:
-        st.session_state.mock_stage = 0
-    if "mock_completed" not in st.session_state:
-        st.session_state.mock_completed = set()
-
-    stages = [
-        ("Document collection", "Documents enter the workspace", "The system receives a small collection of documents. Each card represents one document that can later be searched.", "Document Collection", "Documents are collected before any semantic comparison can happen."),
-        ("Text preprocessing", "Text is cleaned and prepared", "The text is transformed into a simpler form before the embedding model reads it.", "Text Processing", "The model needs consistent text input before generating vectors."),
-        ("Dense embeddings", "Meaning becomes a numerical vector", "The embedding model converts each processed document into a dense numerical representation.", "Embedding Generation", "Vectors allow text with similar meaning to be compared mathematically."),
-        ("Vector index", "Document vectors are stored", "The generated vectors are placed into a searchable in-memory vector collection.", "Vector Collection", "The stored vectors are reused whenever a new query arrives."),
-        ("Query embedding", "The user question enters the same space", "The query is processed by the same embedding model so that it can be compared with document vectors.", "Query Processing", "The query and documents must use the same vector space."),
-        ("Cosine similarity", "The query is compared with each document", "The system compares vector directions. Higher cosine similarity means stronger semantic alignment.", "Similarity Comparison", "Cosine similarity measures how closely two vectors point in the same direction."),
-        ("Ranking and Top-K", "The strongest matches are returned", "Documents are sorted by their similarity scores and the highest-scoring results are selected.", "Ranking and Retrieval", "Ranking converts many comparison scores into a short, useful result list."),
-    ]
-
-    speed_label = st.select_slider(
-        "Animation speed",
-        options=["Slow", "Normal", "Fast"],
-        value=st.session_state.get("mock_speed", "Normal"),
-        key="mock_speed",
-        help="Controls how long each stage remains visible during the full animation."
-    )
-    speed_seconds = {"Slow": 2.8, "Normal": 1.65, "Fast": 0.75}[speed_label]
-
-    render_html(
-        """
-        <div class="mock-lab-intro">
-          <div class="mock-lab-kicker">INTERACTIVE VIRTUAL LAB · ILLUSTRATIVE MODE</div>
-          <div class="mock-lab-title">From document text to semantic results</div>
-          <div class="mock-lab-subtitle">Follow one meaningful path: documents are prepared, converted into vectors, compared with a query, and ranked.</div>
-          <div class="mock-lab-note"><b>Important:</b> This introductory animation uses a small illustrative collection. The actual dataset search remains available below.</div>
-        </div>
-        """
-    )
-
-    controls = st.columns([1.5, 1, 1, 1, 1, 1])
-    with controls[0]:
-        play = st.button("▶ Play full animation", key="mock_play", use_container_width=True)
-    with controls[1]:
-        previous = st.button("← Previous", key="mock_previous", use_container_width=True)
-    with controls[2]:
-        next_stage = st.button("Next →", key="mock_next", use_container_width=True)
-    with controls[3]:
-        restart = st.button("↺ Restart", key="mock_restart", use_container_width=True)
-    with controls[4]:
-        skip = st.button("Skip", key="mock_skip", use_container_width=True)
-    with controls[5]:
-        reset = st.button("Reset", key="mock_reset", use_container_width=True)
-
-    if reset or restart:
-        st.session_state.mock_stage = 0
-        st.session_state.mock_completed = set()
-
-    if previous:
-        st.session_state.mock_stage = max(0, st.session_state.mock_stage - 1)
-    if next_stage:
-        st.session_state.mock_stage = min(len(stages) - 1, st.session_state.mock_stage + 1)
-        st.session_state.mock_completed.add(st.session_state.mock_stage)
-    if skip:
-        st.session_state.mock_stage = len(stages) - 1
-        st.session_state.mock_completed = set(range(len(stages)))
-
-    scene = st.empty()
-    explanation = st.empty()
-    progress = st.progress((st.session_state.mock_stage + 1) / len(stages))
-
-    def vector_bars(count=22, active=False):
-        heights = [18, 30, 12, 25, 36, 16, 28, 20, 34, 14, 24, 31, 17, 37, 21, 13, 29, 19, 33, 15, 26, 22]
-        return "".join(
-            f'<span class="mock-vector-bar {"active" if active else ""}" style="height:{heights[i % len(heights)]}px;--bar-delay:{i * 0.045}s"></span>'
-            for i in range(count)
-        )
-
-    def doc_card(doc, state="normal", index=0):
-        state_class = f"mock-doc-card {state}"
-        return (
-            f'<div class="{state_class}" style="--card-delay:{index * 0.08}s">'
-            f'<div class="mock-doc-top"><span class="mock-doc-id">{doc["id"]}</span><span class="mock-doc-category">{doc["category"]}</span></div>'
-            f'<div class="mock-doc-title">{doc["title"]}</div>'
-            f'<div class="mock-doc-preview">{doc["preview"]}</div>'
-            f'<div class="mock-doc-footer"><span>Text document</span><span class="mock-status">{"Processed" if state == "done" else "Waiting"}</span></div>'
-            f'</div>'
-        )
-
-    def render_scene(stage_index):
-        label, title, description, module, why = stages[stage_index]
-        completed = stage_index in st.session_state.mock_completed
-        status = "COMPLETED" if completed else f"STAGE {stage_index + 1} OF {len(stages)}"
-
-        if stage_index == 0:
-            visual = (
-                '<div class="mock-flow-row">'
-                '<div class="mock-flow-column">' + "".join(doc_card(d, "done" if completed else "normal", i) for i, d in enumerate(mock_docs)) + '</div>'
-                '<div class="mock-arrow">→</div>'
-                '<div class="mock-module"><div class="mock-module-icon">▦</div><b>Document intake</b><span>Collect and prepare</span><div class="mock-spinner"></div></div>'
-                '</div>'
-                '<div class="mock-bottom-message">Four representative documents enter the workspace one after another. The real dataset count is handled separately by the actual simulation.</div>'
-            )
-        elif stage_index == 1:
-            visual = (
-                '<div class="mock-processing-layout">'
-                '<div class="mock-text-card"><span class="mock-mini-label">RAW TEXT</span><b>Machine Learning allows computers to learn from data.</b><div class="mock-token-row"><span>Machine</span><span>Learning</span><span>allows</span><span>computers</span><span>learn</span><span>data</span></div></div>'
-                '<div class="mock-arrow">→</div>'
-                '<div class="mock-module"><div class="mock-module-icon">✦</div><b>Text preprocessing</b><span>Tokenize · normalize</span><div class="mock-processing-line"></div></div>'
-                '<div class="mock-arrow">→</div>'
-                '<div class="mock-text-card processed"><span class="mock-mini-label">PROCESSED TEXT</span><b>machine learning allows computers learn data</b><div class="mock-check">✓ Ready for encoding</div></div>'
-                '</div>'
-            )
-        elif stage_index == 2:
-            visual = (
-                '<div class="mock-processing-layout">'
-                '<div class="mock-text-card"><span class="mock-mini-label">DOCUMENT TEXT</span><b>Machine learning allows computers to learn from data.</b></div>'
-                '<div class="mock-arrow">→</div>'
-                '<div class="mock-neural-module"><div class="mock-neural-title">Sentence embedding model</div><div class="mock-neural-nodes"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span>Semantic encoder</span></div>'
-                '<div class="mock-arrow">→</div>'
-                '<div class="mock-vector-card"><span class="mock-mini-label">DENSE VECTOR</span><div class="mock-vector">' + vector_bars(active=True) + '</div><b>[0.21, −0.48, 0.73, 0.15, ...]</b><span>Dimension determined by the selected model</span></div>'
-                '</div>'
-            )
-        elif stage_index == 3:
-            rows = "".join(
-                f'<div class="mock-index-row"><span>{d["id"]}</span><span>{d["title"]}</span><div class="mock-index-vector">{vector_bars(10, active=completed)}</div><b>{"Stored" if completed else "Vector " + str(i + 1)}</b></div>'
-                for i, d in enumerate(mock_docs)
-            )
-            visual = (
-                '<div class="mock-index-layout"><div class="mock-index-source">' + "".join(
-                    f'<div class="mock-source-line"><span>{d["id"]}</span><span>Document text</span><span>→</span><span>Embedding</span></div>' for d in mock_docs
-                ) + '</div><div class="mock-arrow">→</div><div class="mock-index-box"><div class="mock-index-heading"><b>Semantic vector collection</b><span>IN-MEMORY</span></div>' + rows + '</div></div>'
-            )
-        elif stage_index == 4:
-            visual = (
-                '<div class="mock-query-layout">'
-                '<div class="mock-query-card"><span class="mock-mini-label">USER QUERY</span><b>' + mock_query + '</b><div class="mock-query-cursor">▌</div></div>'
-                '<div class="mock-arrow">→</div>'
-                '<div class="mock-neural-module"><div class="mock-neural-title">Same embedding model</div><div class="mock-neural-nodes"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span>Query encoder</span></div>'
-                '<div class="mock-arrow">→</div>'
-                '<div class="mock-vector-card"><span class="mock-mini-label">QUERY VECTOR</span><div class="mock-vector">' + vector_bars(active=True) + '</div><b>Same vector space</b><span>Query and documents can now be compared</span></div>'
-                '</div>'
-            )
-        elif stage_index == 5:
-            comparisons = ""
-            for i, d in enumerate(mock_docs):
-                score = d["score"]
-                level = "high" if score >= 0.75 else "medium" if score >= 0.45 else "low"
-                comparisons += (
-                    f'<div class="mock-comparison-row"><div><b>{d["title"]}</b><span>{d["id"]} · {("Strong match" if level == "high" else "Moderate match" if level == "medium" else "Weak match")}</span></div>'
-                    f'<div class="mock-score-track"><div class="mock-score-fill {level}" style="width:{int(score * 100)}%"></div></div><strong>{score:.2f}</strong></div>'
-                )
-            visual = (
-                '<div class="mock-similarity-layout"><div class="mock-query-orbit"><div class="mock-orbit-ring"></div><div class="mock-orbit-core">Q</div><span>Query vector</span></div>'
-                '<div class="mock-comparison-panel"><div class="mock-panel-title">Cosine similarity comparisons</div>' + comparisons + '<div class="mock-formula">cosine similarity = (A · B) / (||A|| × ||B||)</div></div></div>'
-            )
-        else:
-            ranked = sorted(mock_docs, key=lambda d: d["score"], reverse=True)
-            rows = "".join(
-                f'<div class="mock-ranking-row {"winner" if i == 0 else ""}"><span class="mock-rank">{"0" + str(i + 1)}</span><div><b>{d["title"]}</b><span>{d["category"]} · {d["id"]}</span></div><div class="mock-ranking-track"><div style="width:{int(d["score"] * 100)}%"></div></div><strong>{d["score"]:.2f}</strong></div>'
-                for i, d in enumerate(ranked)
-            )
-            visual = '<div class="mock-ranking-panel"><div class="mock-panel-title">Documents sorted by similarity score</div>' + rows + '<div class="mock-result-banner">✓ Top-K retrieval selects the highest-scoring documents</div></div>'
-
-        render_html(
-            " ".join(
-                f"""
-                <style>
-                .mock-scene{{background:#ffffff;border:1px solid #b9dceb;border-radius:18px;padding:22px;margin-top:14px;box-shadow:0 5px 18px rgba(37,116,153,.08);color:#173b52;overflow:hidden}}
-                .mock-scene *{{box-sizing:border-box}}
-                .mock-scene-head{{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;border-bottom:1px solid #dcecf2;padding-bottom:15px}}
-                .mock-kicker,.mock-mini-label{{font-size:10px;letter-spacing:1.4px;font-weight:800;color:#1687b5;text-transform:uppercase}}
-                .mock-scene-title{{font-size:22px;font-weight:800;color:#173b52;margin-top:5px}}
-                .mock-scene-sub{{font-size:12px;color:#5b7483;margin-top:5px;line-height:1.6}}
-                .mock-stage-badge{{background:#eaf8fc;border:1px solid #a9d9e9;color:#147da5;border-radius:20px;padding:8px 11px;font-size:10px;font-weight:800;white-space:nowrap}}
-                .mock-flow-row,.mock-processing-layout,.mock-query-layout,.mock-index-layout,.mock-similarity-layout{{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:22px}}
-                .mock-flow-column{{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:9px;min-width:0}}
-                .mock-doc-card,.mock-text-card,.mock-vector-card,.mock-query-card,.mock-neural-module,.mock-module{{background:#f5fbfd;border:1px solid #c9e5ef;border-radius:12px;padding:12px;min-width:0;flex:1;box-shadow:0 3px 10px rgba(33,113,145,.05);animation:mockAppear .55s ease both;animation-delay:var(--card-delay,0s)}}
-                .mock-doc-card.done{{border-color:#8bceb5;background:#f1fbf5}}
-                .mock-doc-top,.mock-doc-footer{{display:flex;justify-content:space-between;gap:6px;align-items:center;font-size:9px;color:#6a8492}}
-                .mock-doc-id{{font-weight:800;color:#147fa9}}
-                .mock-doc-category{{background:#e3f3f8;border-radius:10px;padding:3px 6px}}
-                .mock-doc-title{{font-size:12px;font-weight:800;color:#20465b;margin-top:9px;line-height:1.35}}
-                .mock-doc-preview{{font-size:10px;color:#66808e;line-height:1.5;margin:7px 0 10px}}
-                .mock-status{{color:#229a73;font-weight:800}}
-                .mock-arrow{{font-size:25px;color:#1a94bd;font-weight:800;flex-shrink:0;animation:mockPulse 1.2s ease-in-out infinite}}
-                .mock-module,.mock-neural-module{{text-align:center;min-width:145px;background:linear-gradient(180deg,#eaf8fc,#ffffff);border:1px solid #8fcde1}}
-                .mock-module-icon{{font-size:28px;color:#178bb8;margin-bottom:8px}}
-                .mock-module b,.mock-neural-title{{display:block;font-size:12px;color:#1b506b}}
-                .mock-module span,.mock-neural-module span,.mock-vector-card span{{display:block;font-size:10px;color:#698592;margin-top:6px}}
-                .mock-spinner,.mock-processing-line{{height:4px;border-radius:10px;background:linear-gradient(90deg,#1e9cc8,#65d4b0,#1e9cc8);background-size:200% 100%;animation:mockFlow 1.3s linear infinite;margin-top:13px}}
-                .mock-text-card{{min-height:135px;display:flex;flex-direction:column;justify-content:center}}
-                .mock-text-card b,.mock-query-card b{{font-size:13px;line-height:1.6;color:#234a60;margin-top:10px}}
-                .mock-token-row{{display:flex;flex-wrap:wrap;gap:5px;margin-top:13px}}
-                .mock-token-row span{{background:#e1f2f8;border:1px solid #b8dce9;border-radius:5px;padding:4px 6px;font-size:10px;color:#23637d}}
-                .mock-text-card.processed{{background:#f0fbf6;border-color:#a7d8c2}}
-                .mock-check{{font-size:10px;color:#1b9b72;font-weight:800;margin-top:12px}}
-                .mock-neural-module{{padding:16px 10px}}
-                .mock-neural-nodes{{height:88px;display:flex;justify-content:center;align-items:center;gap:7px;margin:10px 0}}
-                .mock-neural-nodes i{{display:block;width:9px;height:9px;background:#2aa6c8;border-radius:50%;box-shadow:0 0 0 5px #d8f0f7;animation:mockNode 1.1s ease-in-out infinite alternate}}
-                .mock-neural-nodes i:nth-child(2n){{background:#50bd9c;animation-delay:.15s}}
-                .mock-neural-nodes i:nth-child(3n){{transform:translateY(17px);animation-delay:.3s}}
-                .mock-vector-card{{text-align:center;min-width:190px}}
-                .mock-vector{{display:flex;align-items:flex-end;justify-content:center;gap:3px;height:42px;margin:12px 0 8px}}
-                .mock-vector-bar{{width:6px;border-radius:3px 3px 0 0;background:linear-gradient(#39b9cf,#76cfa8);animation:mockBar .9s ease-in-out infinite alternate;animation-delay:var(--bar-delay)}}
-                .mock-vector-card b{{font-size:10px;color:#315f74}}
-                .mock-source-line,.mock-index-row{{display:grid;grid-template-columns:45px 1fr 80px 60px;gap:8px;align-items:center;border-bottom:1px solid #e2eff4;padding:10px 0;font-size:10px;color:#587684}}
-                .mock-source-line{{grid-template-columns:45px 1fr 20px 70px}}
-                .mock-index-source,.mock-index-box{{flex:1;min-width:0}}
-                .mock-index-box{{border:1px solid #acd8e7;border-radius:12px;padding:12px;background:#fbfeff}}
-                .mock-index-heading{{display:flex;justify-content:space-between;gap:8px;color:#1c536d;font-size:11px;padding-bottom:8px;border-bottom:1px solid #dcecf2}}
-                .mock-index-heading span{{font-size:9px;color:#1d9a7c;font-weight:800}}
-                .mock-index-vector{{display:flex;align-items:flex-end;gap:2px;height:20px}}
-                .mock-index-vector .mock-vector-bar{{width:4px;height:14px!important}}
-                .mock-query-layout{{margin-top:25px}}
-                .mock-query-card{{border:2px solid #8bcfe3;background:#effaff;text-align:center;min-height:145px;display:flex;flex-direction:column;justify-content:center}}
-                .mock-query-cursor{{color:#1d9bc2;animation:mockBlink 1s infinite;margin-top:8px}}
-                .mock-query-orbit{{width:190px;height:190px;position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0}}
-                .mock-orbit-ring{{position:absolute;inset:15px;border:1px dashed #70c5dc;border-radius:50%;animation:mockRotate 9s linear infinite}}
-                .mock-orbit-core{{width:78px;height:78px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#168eb7,#58c6a2);color:white;font-size:27px;font-weight:900;box-shadow:0 0 0 12px #e4f6f7,0 0 0 24px #f3fbfc}}
-                .mock-query-orbit span{{position:absolute;bottom:-3px;font-size:10px;color:#4d7485;font-weight:800}}
-                .mock-comparison-panel,.mock-ranking-panel{{flex:1;border:1px solid #c4e2ec;border-radius:12px;padding:15px;background:#fbfeff;min-width:0}}
-                .mock-panel-title{{font-size:12px;font-weight:800;color:#1c536d;margin-bottom:12px}}
-                .mock-comparison-row{{display:grid;grid-template-columns:1.3fr 1fr 42px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #e2eff4}}
-                .mock-comparison-row b{{font-size:10px;color:#31596d;display:block}}
-                .mock-comparison-row span{{font-size:9px;color:#7a919c;display:block;margin-top:3px}}
-                .mock-score-track,.mock-ranking-track{{height:8px;background:#e7f1f4;border-radius:10px;overflow:hidden}}
-                .mock-score-fill,.mock-ranking-track div{{height:100%;border-radius:10px;background:#8aaab8}}
-                .mock-score-fill.high{{background:#36ae8b}} .mock-score-fill.medium{{background:#d9ad50}} .mock-score-fill.low{{background:#9aaeb7}}
-                .mock-comparison-row strong,.mock-ranking-row strong{{font-size:12px;color:#1c6f8e;text-align:right}}
-                .mock-formula{{margin-top:13px;padding:10px;background:#edf8fb;border-radius:8px;color:#28647c;font-size:11px;text-align:center}}
-                .mock-ranking-row{{display:grid;grid-template-columns:35px 1.4fr 1fr 42px;gap:10px;align-items:center;padding:13px 0;border-bottom:1px solid #e2eff4}}
-                .mock-ranking-row.winner{{background:#f0fbf5;border:1px solid #b8e1cf;border-radius:9px;padding:13px 8px;margin:5px 0}}
-                .mock-rank{{font-size:12px;font-weight:900;color:#1a91b7}}
-                .mock-ranking-row b{{display:block;font-size:11px;color:#31596d}}
-                .mock-ranking-row span{{display:block;font-size:9px;color:#7a919c;margin-top:3px}}
-                .mock-ranking-track{{height:8px}}
-                .mock-ranking-track div{{background:linear-gradient(90deg,#2babc5,#55bd98)}}
-                .mock-result-banner,.mock-bottom-message{{margin-top:15px;background:#effaf5;border:1px solid #b9e3d0;border-radius:9px;padding:11px;color:#25835f;font-size:11px;font-weight:700;text-align:center}}
-                .mock-bottom-message{{background:#eff8fc;border-color:#c1e2ed;color:#426d80}}
-                .mock-scene-footer{{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:18px;padding-top:14px;border-top:1px solid #dcecf2;font-size:11px;color:#698592}}
-                @keyframes mockAppear{{from{{opacity:0;transform:translateY(12px)}}to{{opacity:1;transform:translateY(0)}}}}
-                @keyframes mockPulse{{0%,100%{{transform:translateX(0);opacity:.6}}50%{{transform:translateX(5px);opacity:1}}}}
-                @keyframes mockFlow{{0%{{background-position:0 0}}100%{{background-position:200% 0}}}}
-                @keyframes mockNode{{from{{transform:scale(.75);opacity:.45}}to{{transform:scale(1.3);opacity:1}}}}
-                @keyframes mockBar{{from{{transform:scaleY(.45);transform-origin:bottom}}to{{transform:scaleY(1);transform-origin:bottom}}}}
-                @keyframes mockBlink{{50%{{opacity:0}}}}
-                @keyframes mockRotate{{to{{transform:rotate(360deg)}}}}
-                @media(max-width:850px){{.mock-flow-row,.mock-processing-layout,.mock-query-layout,.mock-index-layout,.mock-similarity-layout{{flex-direction:column}}.mock-arrow{{transform:rotate(90deg)}}.mock-flow-column{{width:100%}}.mock-comparison-panel,.mock-ranking-panel{{width:100%}}.mock-scene-title{{font-size:18px}}}}
-                </style>
-                <div class="mock-scene">
-                  <div class="mock-scene-head">
-                    <div><div class="mock-kicker">SEMANTIC SEARCH WORKFLOW</div><div class="mock-scene-title">{title}</div><div class="mock-scene-sub">{description}</div></div>
-                    <div class="mock-stage-badge">{status}</div>
-                  </div>
-                  {visual}
-                  <div class="mock-scene-footer"><span><b>Current module:</b> {module}</span><span>Illustrative data · Educational view</span></div>
-                </div>
-                """
-            ).replace("{title}", escape_html(title)).replace("{description}", escape_html(description)).replace("{status}", escape_html(status)).replace("{module}", escape_html(module)).replace("{visual}", visual)
-        )
-
-        with explanation.container():
-            st.markdown("#### What is happening?")
-            st.info(description)
-            st.markdown("#### Why is this step required?")
-            st.success(why)
-
-    if play:
-        for idx in range(st.session_state.mock_stage, len(stages)):
-            st.session_state.mock_stage = idx
-            st.session_state.mock_completed.add(idx)
-            render_scene(idx)
-            progress.progress((idx + 1) / len(stages))
-            time.sleep(speed_seconds)
-    else:
-        render_scene(st.session_state.mock_stage)
-        progress.progress((st.session_state.mock_stage + 1) / len(stages))
-
-    st.caption(
-        f"Stage {st.session_state.mock_stage + 1}/{len(stages)} · "
-        f"Speed: {speed_label} · Use Next/Previous for manual walkthrough."
-    )
-
-
-def run_live_search(query, documents_df, embeddings, top_k, threshold, live, pause=0.35):
-    pipeline_placeholder = st.empty()
-    log_placeholder = st.empty()
-    detail_placeholder = st.container()
-
-    logs = []
-
-    def log(message, style="log-run"):
-        logs.append(f'<span class="{style}">{message}</span>')
-        if live:
-            log_placeholder.markdown(log_markup(logs[-12:]), unsafe_allow_html=True)
-
-    def stage(active):
-        if live:
-            pipeline_placeholder.markdown(
-                pipeline_markup(QUERY_STAGES, active), unsafe_allow_html=True
-            )
-
-    start = time.perf_counter()
-
-    # ---- 0: query received ----
-    stage(0)
-    log(f"[1/6] Query received: \"{escape_html(query)}\"")
-    if live:
-        time.sleep(pause)
-
-    # ---- 1: preprocessing ----
-    stage(1)
-    tokens = query.split()
-    log(f"[2/6] Preprocessing: {len(query)} characters, {len(tokens)} whitespace tokens.")
-    if live:
-        time.sleep(pause)
-
-    # ---- 2: query embedding ----
-    stage(2)
-    log("[3/6] Encoding the query with the same model used for the documents ...")
-
-    query_vector, scores = compute_similarities(query, documents_df, embeddings)
-
-    log(
-        f"      Query vector generated: shape ({query_vector.shape[0]},), "
-        f"norm {np.linalg.norm(query_vector):.3f}.",
-        "log-ok",
-    )
-
-    if live:
-        with detail_placeholder:
-            preview = pd.DataFrame(
-                {
-                    "dimension": [f"d{i}" for i in range(24)],
-                    "value": query_vector[:24],
-                }
-            )
-
-            vector_figure = px.bar(
-                preview,
-                x="dimension",
-                y="value",
-                title="Query embedding (first 24 of "
-                f"{query_vector.shape[0]} dimensions)",
-            )
-            vector_figure.update_layout(height=260, xaxis_title="", yaxis_title="value")
-
-            st.plotly_chart(vector_figure, use_container_width=True)
-
-        time.sleep(pause)
-
-    # ---- 3: cosine similarity ----
-    stage(3)
-    log(
-        f"[4/6] Computing cosine similarity against {len(documents_df)} document vectors "
-        "(single matrix multiplication of unit vectors)."
-    )
-
-    if live:
-        with detail_placeholder:
-            histogram = px.histogram(
-                pd.DataFrame({"Cosine Similarity": scores}),
-                x="Cosine Similarity",
-                nbins=40,
-                title="Distribution of similarity scores across the whole collection",
-            )
-
-            histogram.add_vline(
-                x=threshold,
-                line_dash="dash",
-                line_color="#f47721",
-                annotation_text=f"threshold {threshold:.2f}",
-            )
-
-            histogram.update_layout(height=300, yaxis_title="Number of documents")
-
-            st.plotly_chart(histogram, use_container_width=True)
-
-        log(
-            f"      max {scores.max():.4f} | mean {scores.mean():.4f} | "
-            f"min {scores.min():.4f}"
-        )
-        time.sleep(pause)
-
-    # ---- 4: ranking ----
-    stage(4)
-    above = int((scores >= threshold).sum())
-    log(
-        f"[5/6] Ranking documents by score. {above} of {len(scores)} documents "
-        f"reach the threshold of {threshold:.2f}."
-    )
-    if live:
-        time.sleep(pause)
-
-    # ---- 5: top-k ----
-    stage(5)
+def render_query_embedding_stage(query, query_vector):
+    sim_header("6. Query Embedding", "The query is encoded using the same model and vector space as the documents.")
+    st.info(f"User query: {query}")
+    st.markdown("**User Query → Same SentenceTransformer Model → Query Vector**")
+    st.code("[" + ", ".join(f"{v:.2f}" for v in query_vector[:5]) + ", ...]", language="text")
+    st.caption(f"Actual query vector dimension: {len(query_vector)}")
+    qdf = pd.DataFrame({"Dimension": [f"d{i}" for i in range(min(24, len(query_vector)))], "Value": query_vector[:min(24, len(query_vector))]})
+    fig = px.bar(qdf, x="Dimension", y="Value", title="Query embedding preview")
+    fig.update_layout(height=280, margin=dict(l=10, r=10, t=50, b=10))
+    st.plotly_chart(fig, use_container_width=True)
+    st.success("Documents and queries now exist in the same vector space.")
+
+
+def similarity_label(score):
+    if score >= 0.70:
+        return "High similarity"
+    if score >= 0.40:
+        return "Medium similarity"
+    return "Low similarity"
+
+
+def render_similarity_stage(documents_df, scores):
+    sim_header("7. Cosine Similarity", "Each query vector is compared with every stored document vector using the actual calculated score.")
+    st.latex(r"\text{Cosine Similarity}(A,B)=\frac{A\cdot B}{\|A\|\times\|B\|}")
+    st.write("Cosine similarity compares the direction of two vectors. Higher values indicate that the texts are more semantically aligned in this embedding space.")
+    ranked_indices = np.argsort(scores)[::-1][:8]
+    rows = []
+    for idx in ranked_indices:
+        rows.append({"Document": documents_df.iloc[idx]["title"], "Document ID": documents_df.iloc[idx]["id"], "Score": float(scores[idx]), "Status": similarity_label(float(scores[idx]))})
+    score_df = pd.DataFrame(rows)
+    st.dataframe(score_df.style.format({"Score": "{:.4f}"}), use_container_width=True, hide_index=True)
+    fig = px.bar(score_df.sort_values("Score"), x="Score", y="Document", orientation="h", color="Status", range_x=[-1, 1], title="Representative cosine similarity scores")
+    fig.update_layout(height=380, margin=dict(l=10, r=10, t=50, b=10))
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_ranking_stage(documents_df, scores, top_k, threshold):
+    sim_header("8. Ranking Documents by Semantic Similarity", "Documents are ordered from the highest actual similarity score to the lowest.")
     results = assemble_results(scores, documents_df, top_k, threshold)
-    elapsed = time.perf_counter() - start
-
-    log(
-        f"[6/6] Returning the Top-{top_k} documents: {len(results)} results "
-        f"in {elapsed * 1000:.1f} ms.",
-        "log-ok",
-    )
-
-    if live:
-        pipeline_placeholder.markdown(
-            pipeline_markup(QUERY_STAGES, len(QUERY_STAGES)), unsafe_allow_html=True
-        )
-
-    return results, elapsed, int(query_vector.shape[0]), scores
-
-
-def render_search_panel(documents_df, live):
-    render_html('<div class="stage-label">STAGE B</div>')
-    render_html('<div class="content-subheading">3. Query Search (live)</div>')
-
-    query = st.text_area(
-        "Enter your search query",
-        value=st.session_state.last_query,
-        placeholder="Example: How do machines learn from data?",
-        height=100,
-    )
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        top_k = st.slider("Number of results to retrieve (Top-K)", 1, 20, 5)
-
-    with col2:
-        threshold = st.slider("Minimum similarity threshold", 0.0, 1.0, 0.25, 0.05)
-
-    if st.button("Run Semantic Search", use_container_width=True):
-        if not index_is_current(documents_df):
-            st.warning("Build the embedding index first (Stage A).")
-
-        elif not query.strip():
-            st.warning("Please enter a query.")
-
-        else:
-            results, elapsed, dimension, scores = run_live_search(
-                query,
-                st.session_state.indexed_documents,
-                st.session_state.document_embeddings,
-                top_k,
-                threshold,
-                live,
-            )
-
-            st.session_state.last_query = query
-            st.session_state.last_results = results
-            st.session_state.last_query_time = elapsed
-            st.session_state.last_embedding_dimension = dimension
-            st.session_state.last_documents_compared = len(scores)
-            st.session_state.last_threshold = threshold
-            st.session_state.last_score_distribution = scores
-
-            if not results:
-                st.warning(
-                    "No document reached the similarity threshold. "
-                    "Lower the threshold or rephrase the query."
-                )
-
-
-def render_results_panel():
-    results = st.session_state.last_results
-
     if not results:
-        return
-
-    render_html('<div class="content-subheading">4. Query Processing Summary</div>')
-
-    st.info(f"Query received: {st.session_state.last_query}")
-
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Query Embedding Dimension", st.session_state.last_embedding_dimension)
-    col2.metric("Documents Compared", st.session_state.last_documents_compared)
-    col3.metric("Search Time", f"{st.session_state.last_query_time * 1000:.2f} ms")
-    col4.metric("Documents Returned", len(results))
-
-    render_html('<div class="content-subheading">5. Ranked Results</div>')
-
-    results_df = pd.DataFrame(results)
-
-    table_df = results_df[
-        ["Rank", "Document ID", "Title", "Category", "Source", "Word Count", "Similarity"]
-    ].copy()
-    table_df["Similarity"] = table_df["Similarity"].round(4)
-
-    with st.expander("View results as a table"):
-        st.dataframe(table_df, use_container_width=True, hide_index=True)
-
-    chart_df = results_df.copy()
-    chart_df["Document"] = chart_df["Rank"].astype(str) + ". " + chart_df["Title"]
-    chart_df = chart_df.sort_values("Similarity").reset_index(drop=True)
-    chart_df["Score"] = chart_df["Similarity"].round(4)
-
-    figure = px.bar(
-        chart_df,
-        x="Similarity",
-        y="Document",
-        orientation="h",
-        title="Cosine Similarity of Retrieved Documents",
-        text="Score",
-        labels={"Similarity": "Cosine Similarity", "Document": "Document"},
-    )
-
-    figure.update_layout(height=430, xaxis_range=[0, 1])
-
-    st.plotly_chart(figure, use_container_width=True)
-
+        st.warning("No documents reached the selected similarity threshold. Lower the threshold or rephrase the query.")
+        return results
     for result in results:
-        snippet = result["Content"]
-        if len(snippet) > 350:
-            snippet = snippet[:350] + "..."
-
-        render_html(
-            f"""
-            <div class="result-card">
-                <div class="result-rank">#{result["Rank"]}</div>
-                <div class="result-title">{escape_html(result["Title"])}</div>
-                <div class="result-category">{escape_html(result["Category"])}</div>
-                <div class="result-content">{escape_html(snippet)}</div>
-                <div class="result-score">Cosine Similarity: {result["Similarity"]:.4f}</div>
-                <div class="result-meta">
-                    Document ID: {escape_html(result["Document ID"])}
-                    &nbsp;|&nbsp; Source: {escape_html(result["Source"])}
-                    &nbsp;|&nbsp; Words: {result["Word Count"]}
-                </div>
-            </div>
-            """
-        )
-
-    if st.button("Record Current Trial", use_container_width=True):
-        record_trial()
-        st.success("Trial recorded successfully.")
+        with st.container(border=True):
+            c1, c2, c3 = st.columns([1, 5, 2])
+            c1.markdown(f"### #{result['Rank']}")
+            c2.markdown(f"**{result['Title']}**")
+            c2.caption(f"{result['Document ID']} · {result['Category']}")
+            c3.metric("Similarity", f"{result['Similarity']:.4f}")
+            st.progress(max(0.0, min(1.0, result["Similarity"])), text=similarity_label(result["Similarity"]))
+            st.success("Retrieved Result")
+    return results
 
 
 def render_simulation():
-    render_html('<div class="content-heading">Simulation</div>')
-
-    render_html(
-        """
-        <div class="info-box">
-            First understand the complete semantic-search workflow through the
-            visual mock animation. After that, use the actual dataset simulation
-            to build the index and perform a real search.
-        </div>
-        """
-    )
-
-    render_mock_semantic_animation()
-
-    render_html('<div class="content-heading">Actual Dataset Simulation</div>')
-
-    live = st.checkbox(
-        "Show technical live details during the actual search",
-        value=True,
-        key="actual_live_details",
-    )
-
+    sim_header("Simulation", "Follow the complete semantic search workflow from document collection to Top-K retrieval.")
     documents_df = get_active_documents()
     _, source_label = load_base_documents()
+    if st.session_state.get("uploaded_documents") is not None:
+        source_label = f"{source_label} + uploaded documents"
 
-    if st.session_state.uploaded_documents is not None:
-        source_label = f"{source_label} + uploaded file"
+    top_k_options = [3, 5, 10]
+    control_a, control_b, control_c, control_d = st.columns(4)
+    with control_a:
+        speed = st.selectbox("Animation speed", ["Slow", "Normal", "Fast"], index=1, key="sim_speed")
+    with control_b:
+        top_k = st.selectbox("Top-K", top_k_options, index=1, key="sim_top_k")
+    with control_c:
+        threshold = st.slider("Minimum similarity", 0.0, 1.0, 0.25, 0.05, key="sim_threshold")
+    with control_d:
+        st.metric("Speed mode", speed)
 
-    render_dataset_panel(documents_df, source_label)
-    render_indexing_panel(documents_df, live)
-    render_search_panel(documents_df, live)
-    render_results_panel()
+    if "sim_stage" not in st.session_state:
+        st.session_state.sim_stage = 0
+    if "sim_query" not in st.session_state:
+        st.session_state.sim_query = "How can machines learn patterns from data?"
 
+    sim_stage_strip(st.session_state.sim_stage)
+    nav1, nav2, nav3, nav4, nav5 = st.columns(5)
+    with nav1:
+        if st.button("Start", use_container_width=True, key="sim_start"):
+            st.session_state.sim_stage = 0
+            st.session_state.sim_started = True
+            st.rerun()
+    with nav2:
+        if st.button("Previous", use_container_width=True, key="sim_previous"):
+            st.session_state.sim_stage = max(0, st.session_state.sim_stage - 1)
+            st.rerun()
+    with nav3:
+        if st.button("Next Stage", use_container_width=True, key="sim_next"):
+            st.session_state.sim_stage = min(len(SIMULATION_STAGES) - 1, st.session_state.sim_stage + 1)
+            st.rerun()
+    with nav4:
+        if st.button("Restart", use_container_width=True, key="sim_restart"):
+            for key in ["sim_query_vector", "sim_scores", "sim_results", "sim_search_time"]:
+                st.session_state.pop(key, None)
+            st.session_state.sim_stage = 0
+            st.rerun()
+    with nav5:
+        if st.button("Skip to Results", use_container_width=True, key="sim_skip"):
+            st.session_state.sim_stage = len(SIMULATION_STAGES) - 1
+            st.rerun()
+
+    st.progress((st.session_state.sim_stage + 1) / len(SIMULATION_STAGES), text=f"Current stage: {SIMULATION_STAGES[st.session_state.sim_stage]}")
+
+    if st.session_state.sim_stage == 0:
+        render_dataset_panel(documents_df, source_label)
+    elif st.session_state.sim_stage == 1:
+        render_preprocessing_stage(documents_df)
+    else:
+        if not index_is_current(documents_df):
+            sim_header("Build the Vector Collection", "The actual document embeddings must be created before query comparison.")
+            if st.button("Build Embedding Collection", type="primary", use_container_width=True, key="sim_build_index"):
+                with st.spinner("Generating document embeddings with SentenceTransformer..."):
+                    start = time.perf_counter()
+                    model = load_embedding_model()
+                    texts = documents_df["content"].astype(str).tolist()
+                    embeddings = model.encode(texts, convert_to_numpy=True, normalize_embeddings=True, show_progress_bar=False)
+                    store_index(embeddings, documents_df, time.perf_counter() - start)
+                st.success(f"Created {embeddings.shape[0]} vectors with dimension {embeddings.shape[1]}.")
+                st.rerun()
+            st.info("Click the button above to generate the real document embeddings. The model is cached after the first load.")
+            return
+
+        embeddings = st.session_state.document_embeddings
+        if st.session_state.sim_stage == 2:
+            render_embedding_stage(documents_df, embeddings)
+        elif st.session_state.sim_stage == 3:
+            render_vector_collection_stage(documents_df, embeddings)
+        else:
+            query = st.text_input("Search query", value=st.session_state.sim_query, key="sim_query_input")
+            st.session_state.sim_query = query
+            if st.button("Run Simulation", type="primary", use_container_width=True, key="sim_run"):
+                if not query.strip():
+                    st.warning("Enter a query first.")
+                else:
+                    with st.spinner("Encoding query and calculating cosine similarity..."):
+                        start = time.perf_counter()
+                        query_vector, scores = compute_similarities(query, documents_df, embeddings)
+                        elapsed = time.perf_counter() - start
+                    st.session_state.sim_query_vector = query_vector
+                    st.session_state.sim_scores = scores
+                    st.session_state.sim_search_time = elapsed
+                    st.session_state.sim_results = assemble_results(scores, documents_df, top_k, threshold)
+                    st.session_state.last_query = query
+                    st.session_state.last_results = st.session_state.sim_results
+                    st.session_state.last_query_time = elapsed
+                    st.session_state.last_embedding_dimension = len(query_vector)
+                    st.session_state.last_documents_compared = len(scores)
+                    st.session_state.last_threshold = threshold
+                    st.session_state.last_score_distribution = scores
+                    st.rerun()
+
+            if "sim_query_vector" not in st.session_state:
+                st.info("Enter a query and click Run Simulation to generate the query embedding and actual similarity scores.")
+                return
+
+            query_vector = st.session_state.sim_query_vector
+            scores = st.session_state.sim_scores
+            if st.session_state.sim_stage == 4:
+                st.info(f"Query received: {query}")
+                st.write("The query is now ready to be converted into the same embedding space as the document collection.")
+            elif st.session_state.sim_stage == 5:
+                render_query_embedding_stage(query, query_vector)
+            elif st.session_state.sim_stage == 6:
+                render_similarity_stage(documents_df, scores)
+            elif st.session_state.sim_stage == 7:
+                render_ranking_stage(documents_df, scores, top_k, threshold)
+            else:
+                results = render_ranking_stage(documents_df, scores, top_k, threshold)
+                st.markdown("### 9. Top-K Results")
+                st.success(f"Returned {len(results)} result(s) from Top-{top_k} retrieval.")
+                st.caption(f"Query time: {st.session_state.get('sim_search_time', 0) * 1000:.2f} ms · Compared: {len(scores)} documents · Dimension: {len(query_vector)}")
+                if results:
+                    result_df = pd.DataFrame(results)
+                    st.dataframe(result_df[["Rank", "Document ID", "Title", "Category", "Similarity"]].style.format({"Similarity": "{:.4f}"}), use_container_width=True, hide_index=True)
+                    if st.button("Record Current Trial", use_container_width=True, key="sim_record_trial"):
+                        record_trial()
+                        st.success("Trial recorded successfully.")
 
 # ============================================================
 # REMAINING SECTIONS
