@@ -2351,155 +2351,296 @@ def render_indexing_panel(documents_df, live):
 # ============================================================
 
 
-def render_mock_semantic_animation():
-    """Premium, illustrative semantic-search animation using mock data."""
-    render_html("""
-    <div class="content-subheading">Neural Search Lab · Interactive Visualization</div>
-    <div style="background:linear-gradient(135deg,#101827,#172b4d 55%,#102f3b);
-                border:1px solid #2c5674;border-radius:22px;padding:24px;color:#eaf6ff;
-                box-shadow:0 12px 40px rgba(8,20,40,.25);">
-      <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
-        <div>
-          <div style="font-size:11px;letter-spacing:2px;color:#72e7ff;font-weight:800;">SEMANTIC ENGINE / MOCK MODE</div>
-          <div style="font-size:25px;font-weight:850;margin-top:6px;">From language to meaning</div>
-          <div style="color:#a9c3d9;font-size:13px;margin-top:5px;">Watch text become vectors, travel through the embedding space, and form a ranked result.</div>
-        </div>
-        <div style="padding:8px 12px;border:1px solid #3d718b;border-radius:30px;color:#9dffce;font-size:12px;">● LIVE VISUAL DEMO</div>
-      </div>
-    </div>
-    """)
 
-    query = "How do computers learn from data?"
-    docs = [
-        ("A", "Introduction to Machine Learning", 0.94, "#5df2c1", "Highly related"),
-        ("B", "Supervised Learning Algorithms", 0.88, "#63b8ff", "Related"),
-        ("C", "Computer Networks", 0.31, "#f5c76b", "Weak relation"),
-        ("D", "Database Management", 0.22, "#ff829c", "Low relation"),
+def render_mock_semantic_animation():
+    """Light-theme, coherent educational semantic-search animation using illustrative data."""
+    mock_query = "How can machines learn patterns from data?"
+    mock_docs = [
+        {"id": "D01", "title": "Introduction to Artificial Intelligence", "category": "AI", "preview": "Computers learn patterns from examples.", "score": 0.94},
+        {"id": "D02", "title": "Machine Learning Algorithms", "category": "Machine Learning", "preview": "Supervised models learn from labelled data.", "score": 0.88},
+        {"id": "D03", "title": "Computer Networks", "category": "Networking", "preview": "Devices exchange data through connected systems.", "score": 0.32},
+        {"id": "D04", "title": "Database Management Systems", "category": "Database", "preview": "Databases organize and retrieve structured data.", "score": 0.27},
     ]
 
-    if st.button("✦ Launch Neural Search Animation", key="start_mock_animation", use_container_width=True):
-        stage = st.empty()
-        scene = st.empty()
-        explanation = st.empty()
-        progress = st.progress(0)
+    if "mock_stage" not in st.session_state:
+        st.session_state.mock_stage = 0
+    if "mock_completed" not in st.session_state:
+        st.session_state.mock_completed = set()
 
-        def render_scene(step, title, subtitle, mode):
-            # The scene is deliberately self-contained so it can be displayed inside Streamlit.
-            doc_cards = "".join(
-                f"""<div class="ns-doc {('ns-hit' if mode in ('similarity','ranking','final') and score > .8 else '')}"
-                         style="--accent:{color};--delay:{i*.16}s;">
-                    <div class="ns-doc-top"><span class="ns-dot" style="background:{color}"></span>
-                    <b>DOC {label}</b><span class="ns-mini">{'MATCH' if score>.8 else 'CANDIDATE'}</span></div>
-                    <div class="ns-doc-title">{name}</div>
-                    <div class="ns-vector">{''.join('<i></i>' for _ in range(18))}</div>
-                    <div class="ns-score">{score:.2f}<span> cosine score</span></div>
-                </div>"""
-                for i, (label, name, score, color, relation) in enumerate(docs)
+    stages = [
+        ("Document collection", "Documents enter the workspace", "The system receives a small collection of documents. Each card represents one document that can later be searched.", "Document Collection", "Documents are collected before any semantic comparison can happen."),
+        ("Text preprocessing", "Text is cleaned and prepared", "The text is transformed into a simpler form before the embedding model reads it.", "Text Processing", "The model needs consistent text input before generating vectors."),
+        ("Dense embeddings", "Meaning becomes a numerical vector", "The embedding model converts each processed document into a dense numerical representation.", "Embedding Generation", "Vectors allow text with similar meaning to be compared mathematically."),
+        ("Vector index", "Document vectors are stored", "The generated vectors are placed into a searchable in-memory vector collection.", "Vector Collection", "The stored vectors are reused whenever a new query arrives."),
+        ("Query embedding", "The user question enters the same space", "The query is processed by the same embedding model so that it can be compared with document vectors.", "Query Processing", "The query and documents must use the same vector space."),
+        ("Cosine similarity", "The query is compared with each document", "The system compares vector directions. Higher cosine similarity means stronger semantic alignment.", "Similarity Comparison", "Cosine similarity measures how closely two vectors point in the same direction."),
+        ("Ranking and Top-K", "The strongest matches are returned", "Documents are sorted by their similarity scores and the highest-scoring results are selected.", "Ranking and Retrieval", "Ranking converts many comparison scores into a short, useful result list."),
+    ]
+
+    speed_label = st.select_slider(
+        "Animation speed",
+        options=["Slow", "Normal", "Fast"],
+        value=st.session_state.get("mock_speed", "Normal"),
+        key="mock_speed",
+        help="Controls how long each stage remains visible during the full animation."
+    )
+    speed_seconds = {"Slow": 2.8, "Normal": 1.65, "Fast": 0.75}[speed_label]
+
+    render_html(
+        """
+        <div class="mock-lab-intro">
+          <div class="mock-lab-kicker">INTERACTIVE VIRTUAL LAB · ILLUSTRATIVE MODE</div>
+          <div class="mock-lab-title">From document text to semantic results</div>
+          <div class="mock-lab-subtitle">Follow one meaningful path: documents are prepared, converted into vectors, compared with a query, and ranked.</div>
+          <div class="mock-lab-note"><b>Important:</b> This introductory animation uses a small illustrative collection. The actual dataset search remains available below.</div>
+        </div>
+        """
+    )
+
+    controls = st.columns([1.5, 1, 1, 1, 1, 1])
+    with controls[0]:
+        play = st.button("▶ Play full animation", key="mock_play", use_container_width=True)
+    with controls[1]:
+        previous = st.button("← Previous", key="mock_previous", use_container_width=True)
+    with controls[2]:
+        next_stage = st.button("Next →", key="mock_next", use_container_width=True)
+    with controls[3]:
+        restart = st.button("↺ Restart", key="mock_restart", use_container_width=True)
+    with controls[4]:
+        skip = st.button("Skip", key="mock_skip", use_container_width=True)
+    with controls[5]:
+        reset = st.button("Reset", key="mock_reset", use_container_width=True)
+
+    if reset or restart:
+        st.session_state.mock_stage = 0
+        st.session_state.mock_completed = set()
+
+    if previous:
+        st.session_state.mock_stage = max(0, st.session_state.mock_stage - 1)
+    if next_stage:
+        st.session_state.mock_stage = min(len(stages) - 1, st.session_state.mock_stage + 1)
+        st.session_state.mock_completed.add(st.session_state.mock_stage)
+    if skip:
+        st.session_state.mock_stage = len(stages) - 1
+        st.session_state.mock_completed = set(range(len(stages)))
+
+    scene = st.empty()
+    explanation = st.empty()
+    progress = st.progress((st.session_state.mock_stage + 1) / len(stages))
+
+    def vector_bars(count=22, active=False):
+        heights = [18, 30, 12, 25, 36, 16, 28, 20, 34, 14, 24, 31, 17, 37, 21, 13, 29, 19, 33, 15, 26, 22]
+        return "".join(
+            f'<span class="mock-vector-bar {"active" if active else ""}" style="height:{heights[i % len(heights)]}px;--bar-delay:{i * 0.045}s"></span>'
+            for i in range(count)
+        )
+
+    def doc_card(doc, state="normal", index=0):
+        state_class = f"mock-doc-card {state}"
+        return (
+            f'<div class="{state_class}" style="--card-delay:{index * 0.08}s">'
+            f'<div class="mock-doc-top"><span class="mock-doc-id">{doc["id"]}</span><span class="mock-doc-category">{doc["category"]}</span></div>'
+            f'<div class="mock-doc-title">{doc["title"]}</div>'
+            f'<div class="mock-doc-preview">{doc["preview"]}</div>'
+            f'<div class="mock-doc-footer"><span>Text document</span><span class="mock-status">{"Processed" if state == "done" else "Waiting"}</span></div>'
+            f'</div>'
+        )
+
+    def render_scene(stage_index):
+        label, title, description, module, why = stages[stage_index]
+        completed = stage_index in st.session_state.mock_completed
+        status = "COMPLETED" if completed else f"STAGE {stage_index + 1} OF {len(stages)}"
+
+        if stage_index == 0:
+            visual = (
+                '<div class="mock-flow-row">'
+                '<div class="mock-flow-column">' + "".join(doc_card(d, "done" if completed else "normal", i) for i, d in enumerate(mock_docs)) + '</div>'
+                '<div class="mock-arrow">→</div>'
+                '<div class="mock-module"><div class="mock-module-icon">▦</div><b>Document intake</b><span>Collect and prepare</span><div class="mock-spinner"></div></div>'
+                '</div>'
+                '<div class="mock-bottom-message">Four representative documents enter the workspace one after another. The real dataset count is handled separately by the actual simulation.</div>'
             )
-            lines = """
-              <svg class="ns-lines" viewBox="0 0 900 260" preserveAspectRatio="none">
-                <path class="ns-path p1" d="M450 130 C330 30 200 30 105 85"/>
-                <path class="ns-path p2" d="M450 130 C340 80 245 100 105 190"/>
-                <path class="ns-path p3" d="M450 130 C570 30 700 30 795 85"/>
-                <path class="ns-path p4" d="M450 130 C560 180 700 220 795 190"/>
-                <circle class="ns-pulse" cx="450" cy="130" r="9"/>
-              </svg>
-            """
-            query_box = f"""
-              <div class="ns-query">
-                <div class="ns-query-label">QUERY EMBEDDING</div>
-                <div class="ns-query-text">“{query}”</div>
-                <div class="ns-vector ns-query-vector">{''.join('<i></i>' for _ in range(28))}</div>
-                <div class="ns-query-meta">768 dimensions · normalized vector</div>
-              </div>
-            """
-            ranking = ""
-            if mode in ("ranking", "final"):
-                ranking = """
-                <div class="ns-ranking">
-                  <div class="ns-rank-title">RANKING ENGINE</div>
-                  <div class="ns-rank-row"><b>01</b><span>Introduction to Machine Learning</span><strong>0.94</strong></div>
-                  <div class="ns-rank-row"><b>02</b><span>Supervised Learning Algorithms</span><strong>0.88</strong></div>
-                  <div class="ns-rank-row muted"><b>03</b><span>Computer Networks</span><strong>0.31</strong></div>
-                  <div class="ns-rank-row muted"><b>04</b><span>Database Management</span><strong>0.22</strong></div>
+        elif stage_index == 1:
+            visual = (
+                '<div class="mock-processing-layout">'
+                '<div class="mock-text-card"><span class="mock-mini-label">RAW TEXT</span><b>Machine Learning allows computers to learn from data.</b><div class="mock-token-row"><span>Machine</span><span>Learning</span><span>allows</span><span>computers</span><span>learn</span><span>data</span></div></div>'
+                '<div class="mock-arrow">→</div>'
+                '<div class="mock-module"><div class="mock-module-icon">✦</div><b>Text preprocessing</b><span>Tokenize · normalize</span><div class="mock-processing-line"></div></div>'
+                '<div class="mock-arrow">→</div>'
+                '<div class="mock-text-card processed"><span class="mock-mini-label">PROCESSED TEXT</span><b>machine learning allows computers learn data</b><div class="mock-check">✓ Ready for encoding</div></div>'
+                '</div>'
+            )
+        elif stage_index == 2:
+            visual = (
+                '<div class="mock-processing-layout">'
+                '<div class="mock-text-card"><span class="mock-mini-label">DOCUMENT TEXT</span><b>Machine learning allows computers to learn from data.</b></div>'
+                '<div class="mock-arrow">→</div>'
+                '<div class="mock-neural-module"><div class="mock-neural-title">Sentence embedding model</div><div class="mock-neural-nodes"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span>Semantic encoder</span></div>'
+                '<div class="mock-arrow">→</div>'
+                '<div class="mock-vector-card"><span class="mock-mini-label">DENSE VECTOR</span><div class="mock-vector">' + vector_bars(active=True) + '</div><b>[0.21, −0.48, 0.73, 0.15, ...]</b><span>Dimension determined by the selected model</span></div>'
+                '</div>'
+            )
+        elif stage_index == 3:
+            rows = "".join(
+                f'<div class="mock-index-row"><span>{d["id"]}</span><span>{d["title"]}</span><div class="mock-index-vector">{vector_bars(10, active=completed)}</div><b>{"Stored" if completed else "Vector " + str(i + 1)}</b></div>'
+                for i, d in enumerate(mock_docs)
+            )
+            visual = (
+                '<div class="mock-index-layout"><div class="mock-index-source">' + "".join(
+                    f'<div class="mock-source-line"><span>{d["id"]}</span><span>Document text</span><span>→</span><span>Embedding</span></div>' for d in mock_docs
+                ) + '</div><div class="mock-arrow">→</div><div class="mock-index-box"><div class="mock-index-heading"><b>Semantic vector collection</b><span>IN-MEMORY</span></div>' + rows + '</div></div>'
+            )
+        elif stage_index == 4:
+            visual = (
+                '<div class="mock-query-layout">'
+                '<div class="mock-query-card"><span class="mock-mini-label">USER QUERY</span><b>' + mock_query + '</b><div class="mock-query-cursor">▌</div></div>'
+                '<div class="mock-arrow">→</div>'
+                '<div class="mock-neural-module"><div class="mock-neural-title">Same embedding model</div><div class="mock-neural-nodes"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span>Query encoder</span></div>'
+                '<div class="mock-arrow">→</div>'
+                '<div class="mock-vector-card"><span class="mock-mini-label">QUERY VECTOR</span><div class="mock-vector">' + vector_bars(active=True) + '</div><b>Same vector space</b><span>Query and documents can now be compared</span></div>'
+                '</div>'
+            )
+        elif stage_index == 5:
+            comparisons = ""
+            for i, d in enumerate(mock_docs):
+                score = d["score"]
+                level = "high" if score >= 0.75 else "medium" if score >= 0.45 else "low"
+                comparisons += (
+                    f'<div class="mock-comparison-row"><div><b>{d["title"]}</b><span>{d["id"]} · {("Strong match" if level == "high" else "Moderate match" if level == "medium" else "Weak match")}</span></div>'
+                    f'<div class="mock-score-track"><div class="mock-score-fill {level}" style="width:{int(score * 100)}%"></div></div><strong>{score:.2f}</strong></div>'
+                )
+            visual = (
+                '<div class="mock-similarity-layout"><div class="mock-query-orbit"><div class="mock-orbit-ring"></div><div class="mock-orbit-core">Q</div><span>Query vector</span></div>'
+                '<div class="mock-comparison-panel"><div class="mock-panel-title">Cosine similarity comparisons</div>' + comparisons + '<div class="mock-formula">cosine similarity = (A · B) / (||A|| × ||B||)</div></div></div>'
+            )
+        else:
+            ranked = sorted(mock_docs, key=lambda d: d["score"], reverse=True)
+            rows = "".join(
+                f'<div class="mock-ranking-row {"winner" if i == 0 else ""}"><span class="mock-rank">{"0" + str(i + 1)}</span><div><b>{d["title"]}</b><span>{d["category"]} · {d["id"]}</span></div><div class="mock-ranking-track"><div style="width:{int(d["score"] * 100)}%"></div></div><strong>{d["score"]:.2f}</strong></div>'
+                for i, d in enumerate(ranked)
+            )
+            visual = '<div class="mock-ranking-panel"><div class="mock-panel-title">Documents sorted by similarity score</div>' + rows + '<div class="mock-result-banner">✓ Top-K retrieval selects the highest-scoring documents</div></div>'
+
+        scene.markdown(
+            " ".join(
+                f"""
+                <style>
+                .mock-scene{{background:#ffffff;border:1px solid #b9dceb;border-radius:18px;padding:22px;margin-top:14px;box-shadow:0 5px 18px rgba(37,116,153,.08);color:#173b52;overflow:hidden}}
+                .mock-scene *{{box-sizing:border-box}}
+                .mock-scene-head{{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;border-bottom:1px solid #dcecf2;padding-bottom:15px}}
+                .mock-kicker,.mock-mini-label{{font-size:10px;letter-spacing:1.4px;font-weight:800;color:#1687b5;text-transform:uppercase}}
+                .mock-scene-title{{font-size:22px;font-weight:800;color:#173b52;margin-top:5px}}
+                .mock-scene-sub{{font-size:12px;color:#5b7483;margin-top:5px;line-height:1.6}}
+                .mock-stage-badge{{background:#eaf8fc;border:1px solid #a9d9e9;color:#147da5;border-radius:20px;padding:8px 11px;font-size:10px;font-weight:800;white-space:nowrap}}
+                .mock-flow-row,.mock-processing-layout,.mock-query-layout,.mock-index-layout,.mock-similarity-layout{{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:22px}}
+                .mock-flow-column{{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:9px;min-width:0}}
+                .mock-doc-card,.mock-text-card,.mock-vector-card,.mock-query-card,.mock-neural-module,.mock-module{{background:#f5fbfd;border:1px solid #c9e5ef;border-radius:12px;padding:12px;min-width:0;flex:1;box-shadow:0 3px 10px rgba(33,113,145,.05);animation:mockAppear .55s ease both;animation-delay:var(--card-delay,0s)}}
+                .mock-doc-card.done{{border-color:#8bceb5;background:#f1fbf5}}
+                .mock-doc-top,.mock-doc-footer{{display:flex;justify-content:space-between;gap:6px;align-items:center;font-size:9px;color:#6a8492}}
+                .mock-doc-id{{font-weight:800;color:#147fa9}}
+                .mock-doc-category{{background:#e3f3f8;border-radius:10px;padding:3px 6px}}
+                .mock-doc-title{{font-size:12px;font-weight:800;color:#20465b;margin-top:9px;line-height:1.35}}
+                .mock-doc-preview{{font-size:10px;color:#66808e;line-height:1.5;margin:7px 0 10px}}
+                .mock-status{{color:#229a73;font-weight:800}}
+                .mock-arrow{{font-size:25px;color:#1a94bd;font-weight:800;flex-shrink:0;animation:mockPulse 1.2s ease-in-out infinite}}
+                .mock-module,.mock-neural-module{{text-align:center;min-width:145px;background:linear-gradient(180deg,#eaf8fc,#ffffff);border:1px solid #8fcde1}}
+                .mock-module-icon{{font-size:28px;color:#178bb8;margin-bottom:8px}}
+                .mock-module b,.mock-neural-title{{display:block;font-size:12px;color:#1b506b}}
+                .mock-module span,.mock-neural-module span,.mock-vector-card span{{display:block;font-size:10px;color:#698592;margin-top:6px}}
+                .mock-spinner,.mock-processing-line{{height:4px;border-radius:10px;background:linear-gradient(90deg,#1e9cc8,#65d4b0,#1e9cc8);background-size:200% 100%;animation:mockFlow 1.3s linear infinite;margin-top:13px}}
+                .mock-text-card{{min-height:135px;display:flex;flex-direction:column;justify-content:center}}
+                .mock-text-card b,.mock-query-card b{{font-size:13px;line-height:1.6;color:#234a60;margin-top:10px}}
+                .mock-token-row{{display:flex;flex-wrap:wrap;gap:5px;margin-top:13px}}
+                .mock-token-row span{{background:#e1f2f8;border:1px solid #b8dce9;border-radius:5px;padding:4px 6px;font-size:10px;color:#23637d}}
+                .mock-text-card.processed{{background:#f0fbf6;border-color:#a7d8c2}}
+                .mock-check{{font-size:10px;color:#1b9b72;font-weight:800;margin-top:12px}}
+                .mock-neural-module{{padding:16px 10px}}
+                .mock-neural-nodes{{height:88px;display:flex;justify-content:center;align-items:center;gap:7px;margin:10px 0}}
+                .mock-neural-nodes i{{display:block;width:9px;height:9px;background:#2aa6c8;border-radius:50%;box-shadow:0 0 0 5px #d8f0f7;animation:mockNode 1.1s ease-in-out infinite alternate}}
+                .mock-neural-nodes i:nth-child(2n){{background:#50bd9c;animation-delay:.15s}}
+                .mock-neural-nodes i:nth-child(3n){{transform:translateY(17px);animation-delay:.3s}}
+                .mock-vector-card{{text-align:center;min-width:190px}}
+                .mock-vector{{display:flex;align-items:flex-end;justify-content:center;gap:3px;height:42px;margin:12px 0 8px}}
+                .mock-vector-bar{{width:6px;border-radius:3px 3px 0 0;background:linear-gradient(#39b9cf,#76cfa8);animation:mockBar .9s ease-in-out infinite alternate;animation-delay:var(--bar-delay)}}
+                .mock-vector-card b{{font-size:10px;color:#315f74}}
+                .mock-source-line,.mock-index-row{{display:grid;grid-template-columns:45px 1fr 80px 60px;gap:8px;align-items:center;border-bottom:1px solid #e2eff4;padding:10px 0;font-size:10px;color:#587684}}
+                .mock-source-line{{grid-template-columns:45px 1fr 20px 70px}}
+                .mock-index-source,.mock-index-box{{flex:1;min-width:0}}
+                .mock-index-box{{border:1px solid #acd8e7;border-radius:12px;padding:12px;background:#fbfeff}}
+                .mock-index-heading{{display:flex;justify-content:space-between;gap:8px;color:#1c536d;font-size:11px;padding-bottom:8px;border-bottom:1px solid #dcecf2}}
+                .mock-index-heading span{{font-size:9px;color:#1d9a7c;font-weight:800}}
+                .mock-index-vector{{display:flex;align-items:flex-end;gap:2px;height:20px}}
+                .mock-index-vector .mock-vector-bar{{width:4px;height:14px!important}}
+                .mock-query-layout{{margin-top:25px}}
+                .mock-query-card{{border:2px solid #8bcfe3;background:#effaff;text-align:center;min-height:145px;display:flex;flex-direction:column;justify-content:center}}
+                .mock-query-cursor{{color:#1d9bc2;animation:mockBlink 1s infinite;margin-top:8px}}
+                .mock-query-orbit{{width:190px;height:190px;position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0}}
+                .mock-orbit-ring{{position:absolute;inset:15px;border:1px dashed #70c5dc;border-radius:50%;animation:mockRotate 9s linear infinite}}
+                .mock-orbit-core{{width:78px;height:78px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#168eb7,#58c6a2);color:white;font-size:27px;font-weight:900;box-shadow:0 0 0 12px #e4f6f7,0 0 0 24px #f3fbfc}}
+                .mock-query-orbit span{{position:absolute;bottom:-3px;font-size:10px;color:#4d7485;font-weight:800}}
+                .mock-comparison-panel,.mock-ranking-panel{{flex:1;border:1px solid #c4e2ec;border-radius:12px;padding:15px;background:#fbfeff;min-width:0}}
+                .mock-panel-title{{font-size:12px;font-weight:800;color:#1c536d;margin-bottom:12px}}
+                .mock-comparison-row{{display:grid;grid-template-columns:1.3fr 1fr 42px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #e2eff4}}
+                .mock-comparison-row b{{font-size:10px;color:#31596d;display:block}}
+                .mock-comparison-row span{{font-size:9px;color:#7a919c;display:block;margin-top:3px}}
+                .mock-score-track,.mock-ranking-track{{height:8px;background:#e7f1f4;border-radius:10px;overflow:hidden}}
+                .mock-score-fill,.mock-ranking-track div{{height:100%;border-radius:10px;background:#8aaab8}}
+                .mock-score-fill.high{{background:#36ae8b}} .mock-score-fill.medium{{background:#d9ad50}} .mock-score-fill.low{{background:#9aaeb7}}
+                .mock-comparison-row strong,.mock-ranking-row strong{{font-size:12px;color:#1c6f8e;text-align:right}}
+                .mock-formula{{margin-top:13px;padding:10px;background:#edf8fb;border-radius:8px;color:#28647c;font-size:11px;text-align:center}}
+                .mock-ranking-row{{display:grid;grid-template-columns:35px 1.4fr 1fr 42px;gap:10px;align-items:center;padding:13px 0;border-bottom:1px solid #e2eff4}}
+                .mock-ranking-row.winner{{background:#f0fbf5;border:1px solid #b8e1cf;border-radius:9px;padding:13px 8px;margin:5px 0}}
+                .mock-rank{{font-size:12px;font-weight:900;color:#1a91b7}}
+                .mock-ranking-row b{{display:block;font-size:11px;color:#31596d}}
+                .mock-ranking-row span{{display:block;font-size:9px;color:#7a919c;margin-top:3px}}
+                .mock-ranking-track{{height:8px}}
+                .mock-ranking-track div{{background:linear-gradient(90deg,#2babc5,#55bd98)}}
+                .mock-result-banner,.mock-bottom-message{{margin-top:15px;background:#effaf5;border:1px solid #b9e3d0;border-radius:9px;padding:11px;color:#25835f;font-size:11px;font-weight:700;text-align:center}}
+                .mock-bottom-message{{background:#eff8fc;border-color:#c1e2ed;color:#426d80}}
+                .mock-scene-footer{{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:18px;padding-top:14px;border-top:1px solid #dcecf2;font-size:11px;color:#698592}}
+                @keyframes mockAppear{{from{{opacity:0;transform:translateY(12px)}}to{{opacity:1;transform:translateY(0)}}}}
+                @keyframes mockPulse{{0%,100%{{transform:translateX(0);opacity:.6}}50%{{transform:translateX(5px);opacity:1}}}}
+                @keyframes mockFlow{{0%{{background-position:0 0}}100%{{background-position:200% 0}}}}
+                @keyframes mockNode{{from{{transform:scale(.75);opacity:.45}}to{{transform:scale(1.3);opacity:1}}}}
+                @keyframes mockBar{{from{{transform:scaleY(.45);transform-origin:bottom}}to{{transform:scaleY(1);transform-origin:bottom}}}}
+                @keyframes mockBlink{{50%{{opacity:0}}}}
+                @keyframes mockRotate{{to{{transform:rotate(360deg)}}}}
+                @media(max-width:850px){{.mock-flow-row,.mock-processing-layout,.mock-query-layout,.mock-index-layout,.mock-similarity-layout{{flex-direction:column}}.mock-arrow{{transform:rotate(90deg)}}.mock-flow-column{{width:100%}}.mock-comparison-panel,.mock-ranking-panel{{width:100%}}.mock-scene-title{{font-size:18px}}}}
+                </style>
+                <div class="mock-scene">
+                  <div class="mock-scene-head">
+                    <div><div class="mock-kicker">SEMANTIC SEARCH WORKFLOW</div><div class="mock-scene-title">{title}</div><div class="mock-scene-sub">{description}</div></div>
+                    <div class="mock-stage-badge">{status}</div>
+                  </div>
+                  {visual}
+                  <div class="mock-scene-footer"><span><b>Current module:</b> {module}</span><span>Illustrative data · Educational view</span></div>
                 </div>
                 """
-            scene.markdown(f"""
-            <style>
-              .ns-wrap{{background:#08111f;border:1px solid #24415b;border-radius:22px;padding:20px;color:#dff5ff;overflow:hidden;position:relative;}}
-              .ns-wrap:before{{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent,#12314b22,transparent);animation:nsSweep 4s linear infinite;pointer-events:none;}}
-              .ns-header{{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;position:relative;z-index:2;}}
-              .ns-kicker{{font-size:10px;letter-spacing:2px;color:#6ee7ff;font-weight:800;}}
-              .ns-title{{font-size:22px;font-weight:850;margin-top:4px;}}
-              .ns-sub{{font-size:12px;color:#88a9bf;margin-top:4px;}}
-              .ns-stage{{border:1px solid #284961;background:#0d1d2e;border-radius:12px;padding:8px 12px;font-size:11px;color:#9dffce;}}
-              .ns-query{{margin:20px auto 14px;max-width:650px;text-align:center;border:1px solid #3e7694;border-radius:16px;padding:15px;background:radial-gradient(circle at center,#163c50,#0c1a2a);box-shadow:0 0 35px #38c9ff18;position:relative;z-index:2;}}
-              .ns-query-label,.ns-rank-title{{font-size:10px;letter-spacing:2px;color:#67e5ff;font-weight:800;}}
-              .ns-query-text{{font-size:16px;font-weight:750;margin:8px 0;color:#fff;}}
-              .ns-query-meta{{font-size:10px;color:#7fabc3;margin-top:8px;}}
-              .ns-vector{{display:flex;justify-content:center;gap:3px;flex-wrap:wrap;margin-top:10px;}}
-              .ns-vector i{{display:block;width:7px;height:22px;border-radius:3px;background:linear-gradient(#71f9da,#3681ff);animation:nsBars .85s ease-in-out infinite alternate;animation-delay:var(--delay,0s);opacity:.85;}}
-              .ns-query-vector i:nth-child(3n){{height:12px;background:#e78cff;}}
-              .ns-query-vector i:nth-child(4n){{height:29px;}}
-              .ns-network{{position:relative;min-height:270px;display:flex;align-items:center;justify-content:space-between;gap:12px;}}
-              .ns-lines{{position:absolute;inset:0;width:100%;height:100%;z-index:0;overflow:visible;}}
-              .ns-path{{fill:none;stroke:#36718c;stroke-width:1.5;stroke-dasharray:7 9;animation:nsFlow 2.2s linear infinite;}}
-              .ns-pulse{{fill:#69f7d1;filter:drop-shadow(0 0 9px #69f7d1);animation:nsPulse 1.3s ease-in-out infinite;}}
-              .ns-docs{{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:12px;position:relative;z-index:2;}}
-              .ns-doc{{border:1px solid #27465b;border-left:3px solid var(--accent);border-radius:13px;padding:12px;background:#0e2031d9;animation:nsFloat 3s ease-in-out infinite;animation-delay:var(--delay);transition:all .3s;}}
-              .ns-doc.ns-hit{{box-shadow:0 0 25px #42e6bd1c;border-color:#397e78;}}
-              .ns-doc-top{{display:flex;align-items:center;gap:6px;font-size:10px;color:#91b3c8;}}
-              .ns-dot{{width:7px;height:7px;border-radius:50%;box-shadow:0 0 8px var(--accent);}}
-              .ns-mini{{margin-left:auto;font-size:9px;color:var(--accent);}}
-              .ns-doc-title{{font-size:12px;font-weight:750;margin-top:9px;min-height:30px;color:#e9f7ff;}}
-              .ns-score{{font-size:21px;font-weight:850;color:var(--accent);margin-top:8px;}}
-              .ns-score span{{font-size:9px;font-weight:500;color:#779bb1;}}
-              .ns-ranking{{margin-top:18px;border:1px solid #31526a;border-radius:14px;padding:14px;background:#0b1928;position:relative;z-index:2;}}
-              .ns-rank-row{{display:grid;grid-template-columns:35px 1fr 50px;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid #20394d;font-size:12px;animation:nsReveal .55s ease both;}}
-              .ns-rank-row:last-child{{border-bottom:0;}} .ns-rank-row b{{color:#69f7d1;}} .ns-rank-row strong{{text-align:right;color:#69f7d1;}} .ns-rank-row.muted{{opacity:.48;}}
-              @keyframes nsBars{{from{{transform:scaleY(.45);opacity:.4}}to{{transform:scaleY(1);opacity:1}}}}
-              @keyframes nsFlow{{to{{stroke-dashoffset:-32}}}}
-              @keyframes nsPulse{{0%,100%{{r:7;opacity:.6}}50%{{r:14;opacity:1}}}}
-              @keyframes nsFloat{{0%,100%{{transform:translateY(0)}}50%{{transform:translateY(-4px)}}}}
-              @keyframes nsSweep{{from{{transform:translateX(-100%)}}to{{transform:translateX(100%)}}}}
-              @keyframes nsReveal{{from{{opacity:0;transform:translateX(-15px)}}to{{opacity:1;transform:translateX(0)}}}}
-              @media(max-width:600px){{.ns-network{{min-height:230px}}.ns-doc-title{{font-size:11px}}.ns-query-text{{font-size:13px}}}}
-            </style>
-            <div class="ns-wrap">
-              <div class="ns-header"><div><div class="ns-kicker">NEURAL PIPELINE / 07 STAGES</div><div class="ns-title">{title}</div><div class="ns-sub">{subtitle}</div></div><div class="ns-stage">STAGE {step}/7</div></div>
-              {query_box if mode in ("query","embedding","similarity","ranking","final") else ""}
-              <div class="ns-network">{lines}<div style="width:100%;position:relative;z-index:2;">{('<div class="ns-docs">'+doc_cards+'</div>') if mode in ("ingest","embedding") else ''}{('<div class="ns-docs">'+doc_cards+'</div>') if mode == "similarity" else ''}</div></div>
-              {ranking}
-            </div>
-            """, unsafe_allow_html=True)
+            ).replace("{title}", escape_html(title)).replace("{description}", escape_html(description)).replace("{status}", escape_html(status)).replace("{module}", escape_html(module)).replace("{visual}", visual)
+        )
 
-        stages = [
-            ("Documents enter the neural workspace", "Four documents are loaded as independent semantic candidates.", "ingest", 12),
-            ("The encoder reads meaning", "The model processes words and context instead of matching only exact keywords.", "embedding", 28),
-            ("Text becomes a high-dimensional vector", "Each document is represented by a numerical fingerprint of meaning.", "embedding", 45),
-            ("The user query becomes a vector", "The query is encoded using the same embedding space.", "query", 60),
-            ("Semantic distance is measured", "The query vector is compared with every document vector using cosine similarity.", "similarity", 76),
-            ("The ranking engine sorts the candidates", "Documents are ordered from the strongest semantic match to the weakest.", "ranking", 90),
-            ("Relevant results are revealed", "The highest-scoring documents are returned as the final search result.", "final", 100),
-        ]
-        for i, (title, subtitle, mode, pct) in enumerate(stages, 1):
-            render_scene(i, title, subtitle, mode)
-            progress.progress(pct)
-            if i == 1:
-                explanation.info("📥 **Ingestion:** The system receives documents and prepares them for the embedding model.")
-            elif i == 2:
-                explanation.info("🧠 **Encoding:** The neural model captures semantic meaning from the text.")
-            elif i == 3:
-                explanation.info("🔢 **Vectorization:** Similar meanings should occupy nearby regions in the vector space.")
-            elif i == 4:
-                explanation.info("🎯 **Query encoding:** The question is converted into the same numerical representation as the documents.")
-            elif i == 5:
-                explanation.info("🧬 **Similarity:** Higher cosine similarity indicates that the document and query point in a more similar direction.")
-            elif i == 6:
-                explanation.info("🏆 **Ranking:** The system sorts candidates by their similarity score and filters weak matches.")
-            else:
-                explanation.success("✓ **Animation completed:** Documents A and B are the strongest semantic matches in this illustrative example.")
-            time.sleep(1.25 if i != 7 else 0.8)
+        with explanation.container():
+            st.markdown("#### What is happening?")
+            st.info(description)
+            st.markdown("#### Why is this step required?")
+            st.success(why)
+
+    if play:
+        for idx in range(st.session_state.mock_stage, len(stages)):
+            st.session_state.mock_stage = idx
+            st.session_state.mock_completed.add(idx)
+            render_scene(idx)
+            progress.progress((idx + 1) / len(stages))
+            time.sleep(speed_seconds)
+    else:
+        render_scene(st.session_state.mock_stage)
+        progress.progress((st.session_state.mock_stage + 1) / len(stages))
+
+    st.caption(
+        f"Stage {st.session_state.mock_stage + 1}/{len(stages)} · "
+        f"Speed: {speed_label} · Use Next/Previous for manual walkthrough."
+    )
+
 
 def run_live_search(query, documents_df, embeddings, top_k, threshold, live, pause=0.35):
     pipeline_placeholder = st.empty()
