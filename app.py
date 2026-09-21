@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+import plotly.graph_objects as go
+import streamlit.components.v1 as components
 
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -926,6 +928,566 @@ POSTTEST_QUESTIONS = [
 ]
 
 # ============================================================
+# CONCEPT ANIMATION (mock data, purely illustrative)
+# ============================================================
+#
+# This is a self-contained HTML/CSS/JS widget rendered through
+# components.html(). It uses invented documents and coordinates --
+# no real embeddings -- purely to give a visual, animated picture of
+# what the backend is doing: documents become points in a space,
+# a query becomes a point too, and the nearest points are the answer.
+
+CONCEPT_ANIMATION_HTML = r"""
+<div id="root">
+  <div class="toolbar">
+    <button id="playBtn">&#9654; Play Animation</button>
+    <button id="replayBtn">&#8635; Replay</button>
+    <div id="caption">Click Play to see how semantic search works, step by step.</div>
+  </div>
+
+  <div class="legend">
+    <span class="chip"><i style="background:#4f8ff0"></i> AI &amp; ML topics</span>
+    <span class="chip"><i style="background:#37b06a"></i> Systems topics</span>
+    <span class="chip"><i style="background:#b06fe0"></i> Data topics</span>
+    <span class="chip"><i style="background:#f47721;border-radius:50%"></i> Your query</span>
+  </div>
+
+  <svg id="stage" viewBox="0 0 960 440" width="100%" height="420" preserveAspectRatio="xMidYMid meet">
+    <text x="95" y="26" class="panelLabel">Documents</text>
+    <rect x="15" y="36" width="165" height="380" rx="10" class="panel"/>
+    <g id="docStack"></g>
+
+    <text x="425" y="26" class="panelLabel">Encoder Model</text>
+    <rect id="encoderBox" x="345" y="185" width="150" height="90" rx="12" class="encoder"/>
+    <text x="420" y="224" class="encoderText">Sentence</text>
+    <text x="420" y="242" class="encoderText">Transformer</text>
+
+    <text x="775" y="26" class="panelLabel">Embedding Space</text>
+    <rect x="590" y="36" width="355" height="380" rx="10" class="panel"/>
+    <g id="dotsLayer"></g>
+    <g id="linesLayer"></g>
+    <g id="queryLayer"></g>
+    <g id="rankLayer"></g>
+  </svg>
+
+  <div id="resultList" class="resultList"></div>
+</div>
+
+<style>
+#root {
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+    background: #ffffff;
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.toolbar button {
+    background: #2696d2;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.toolbar button:hover { background: #197db6; }
+
+#caption {
+    color: #444444;
+    font-size: 15px;
+    font-weight: 500;
+    min-height: 20px;
+}
+
+.legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.chip {
+    font-size: 13px;
+    color: #555555;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.chip i {
+    width: 10px;
+    height: 10px;
+    display: inline-block;
+    border-radius: 2px;
+}
+
+.panel {
+    fill: #f7fafc;
+    stroke: #dbe6ee;
+    stroke-width: 1;
+}
+
+.panelLabel {
+    font-size: 15px;
+    fill: #2d9bd3;
+    font-weight: 600;
+    text-anchor: middle;
+}
+
+.encoder {
+    fill: #eaf3fb;
+    stroke: #2696d2;
+    stroke-width: 1.5;
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+.encoder.pulse {
+    animation: pulseKey 480ms ease;
+}
+
+@keyframes pulseKey {
+    0%   { transform: scale(1); }
+    45%  { transform: scale(1.1); filter: drop-shadow(0 0 6px #2696d2aa); }
+    100% { transform: scale(1); }
+}
+
+.encoderText {
+    font-size: 13px;
+    fill: #23648c;
+    text-anchor: middle;
+    font-weight: 600;
+}
+
+.docCard {
+    transition: opacity 250ms ease;
+}
+
+.docCard rect {
+    stroke-width: 1.4;
+    fill: #ffffff;
+}
+
+.docCard.active rect {
+    stroke: #f47721;
+    stroke-width: 2.4;
+}
+
+.docCard.done {
+    opacity: 0.35;
+}
+
+.docLabel {
+    font-size: 9px;
+    fill: #555555;
+}
+
+.dot {
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: scale(0);
+    opacity: 0;
+    transition: transform 480ms cubic-bezier(.34,1.56,.64,1), opacity 300ms ease;
+}
+
+.dot.shown {
+    transform: scale(1);
+    opacity: 1;
+}
+
+.queryChip {
+    opacity: 0;
+    transition: opacity 350ms ease;
+}
+
+.queryChip.shown { opacity: 1; }
+
+.queryDot {
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: scale(0);
+    opacity: 0;
+    transition: transform 500ms cubic-bezier(.34,1.56,.64,1), opacity 300ms ease;
+}
+
+.queryDot.shown {
+    transform: scale(1);
+    opacity: 1;
+}
+
+.simLine {
+    stroke: #b9c4cc;
+    stroke-width: 1;
+    opacity: 0;
+    transition: opacity 500ms ease, stroke 400ms ease, stroke-width 400ms ease;
+}
+
+.simLine.shown { opacity: 0.45; }
+.simLine.hot { stroke: #f47721; stroke-width: 2.6; opacity: 0.9; }
+.simLine.cold { opacity: 0.08; }
+
+.rankBadge {
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: scale(0);
+    opacity: 0;
+    transition: transform 420ms cubic-bezier(.34,1.56,.64,1), opacity 300ms ease;
+}
+
+.rankBadge.shown { transform: scale(1); opacity: 1; }
+
+.rankBadge circle { fill: #f47721; }
+.rankBadge text { fill: white; font-size: 12px; font-weight: 700; text-anchor: middle; }
+
+.resultList {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.resultRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #ffffff;
+    border: 1px solid #e2e2e2;
+    border-left: 4px solid #f47721;
+    border-radius: 5px;
+    padding: 8px 12px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 400ms ease, transform 400ms ease;
+}
+
+.resultRow.shown { opacity: 1; transform: translateY(0); }
+
+.resultRank {
+    font-weight: 700;
+    color: #f47721;
+    width: 22px;
+}
+
+.resultTitle {
+    flex: 1;
+    font-size: 14px;
+    color: #333333;
+}
+
+.resultBarTrack {
+    width: 120px;
+    height: 8px;
+    background: #eeeeee;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.resultBarFill {
+    height: 100%;
+    width: 0%;
+    background: #198754;
+    transition: width 700ms ease;
+}
+
+.resultScore {
+    width: 46px;
+    text-align: right;
+    font-size: 13px;
+    color: #198754;
+    font-weight: 600;
+}
+</style>
+
+<script>
+(function () {
+    const svgNS = "http://www.w3.org/2000/svg";
+    const root = document.getElementById("root");
+    const docStack = root.querySelector("#docStack");
+    const dotsLayer = root.querySelector("#dotsLayer");
+    const linesLayer = root.querySelector("#linesLayer");
+    const queryLayer = root.querySelector("#queryLayer");
+    const rankLayer = root.querySelector("#rankLayer");
+    const encoderBox = root.querySelector("#encoderBox");
+    const caption = root.querySelector("#caption");
+    const resultList = root.querySelector("#resultList");
+
+    const COLORS = { ai: "#4f8ff0", sys: "#37b06a", data: "#b06fe0" };
+
+    // Mock documents: a stack icon on the left and a target point
+    // in the embedding space on the right, grouped into three
+    // loose visual clusters purely for illustration.
+    const DOCS = [
+        { title: "Intro to Machine Learning", cluster: "ai", tx: 660, ty: 110 },
+        { title: "Neural Networks Basics",     cluster: "ai", tx: 700, ty: 90  },
+        { title: "Supervised Learning",        cluster: "ai", tx: 675, ty: 150 },
+        { title: "Deep Learning Overview",     cluster: "ai", tx: 720, ty: 130 },
+        { title: "NLP Fundamentals",           cluster: "ai", tx: 650, ty: 160 },
+        { title: "Operating Systems",          cluster: "sys", tx: 860, ty: 240 },
+        { title: "Computer Networks",          cluster: "sys", tx: 900, ty: 260 },
+        { title: "Process Scheduling",         cluster: "sys", tx: 870, ty: 290 },
+        { title: "Memory Management",          cluster: "sys", tx: 910, ty: 220 },
+        { title: "Database Systems",           cluster: "data", tx: 720, ty: 360 },
+        { title: "Data Warehousing",           cluster: "data", tx: 760, ty: 390 },
+        { title: "Vector Databases",           cluster: "data", tx: 690, ty: 380 },
+    ];
+
+    const QUERY_TEXT = "How do machines learn from data?";
+    const QUERY_TARGET = { tx: 690, ty: 130 };
+    const TOP_K = [0, 3, 4]; // indices into DOCS considered "most similar"
+    const MOCK_SCORES = { 0: 0.91, 3: 0.85, 4: 0.79 };
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    function setCaption(text) { caption.textContent = text; }
+
+    function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+
+    function buildDocStack() {
+        clear(docStack);
+        const startY = 55;
+        const gap = 30;
+
+        DOCS.forEach((doc, i) => {
+            const g = document.createElementNS(svgNS, "g");
+            g.setAttribute("class", "docCard");
+            g.setAttribute("id", "doc-" + i);
+
+            const rect = document.createElementNS(svgNS, "rect");
+            rect.setAttribute("x", 30);
+            rect.setAttribute("y", startY + i * gap);
+            rect.setAttribute("width", 130);
+            rect.setAttribute("height", 20);
+            rect.setAttribute("rx", 4);
+            rect.setAttribute("stroke", COLORS[doc.cluster]);
+            g.appendChild(rect);
+
+            const label = document.createElementNS(svgNS, "text");
+            label.setAttribute("x", 36);
+            label.setAttribute("y", startY + i * gap + 14);
+            label.setAttribute("class", "docLabel");
+            label.textContent = doc.title.length > 22 ? doc.title.slice(0, 20) + "..." : doc.title;
+            g.appendChild(label);
+
+            docStack.appendChild(g);
+        });
+    }
+
+    function makeDot(x, y, color, extraClass) {
+        const c = document.createElementNS(svgNS, "circle");
+        c.setAttribute("cx", x);
+        c.setAttribute("cy", y);
+        c.setAttribute("r", 7);
+        c.setAttribute("fill", color);
+        c.setAttribute("class", "dot" + (extraClass ? " " + extraClass : ""));
+        return c;
+    }
+
+    function reset() {
+        buildDocStack();
+        clear(dotsLayer);
+        clear(linesLayer);
+        clear(queryLayer);
+        clear(rankLayer);
+        clear(resultList);
+        setCaption("Click Play to see how semantic search works, step by step.");
+    }
+
+    async function pulseEncoder() {
+        encoderBox.classList.add("pulse");
+        await sleep(480);
+        encoderBox.classList.remove("pulse");
+    }
+
+    async function playAnimation() {
+        reset();
+        await sleep(300);
+
+        // ---- Phase 1: index every document ----
+        setCaption("Step 1 of 4 — Every document is read by the model and turned into a point in space.");
+        await sleep(400);
+
+        for (let i = 0; i < DOCS.length; i++) {
+            const doc = DOCS[i];
+            const card = document.getElementById("doc-" + i);
+            card.classList.add("active");
+
+            await sleep(140);
+            await pulseEncoder();
+
+            const dot = makeDot(doc.tx, doc.ty, COLORS[doc.cluster]);
+            dotsLayer.appendChild(dot);
+            requestAnimationFrame(() => dot.classList.add("shown"));
+
+            card.classList.remove("active");
+            card.classList.add("done");
+
+            await sleep(160);
+        }
+
+        setCaption("All documents are now points in the embedding space — similar topics land close together.");
+        await sleep(1300);
+
+        // ---- Phase 2: embed the query ----
+        setCaption("Step 2 of 4 — A new query from the user is typed in.");
+
+        const chip = document.createElementNS(svgNS, "g");
+        chip.setAttribute("class", "queryChip");
+        const chipRect = document.createElementNS(svgNS, "rect");
+        chipRect.setAttribute("x", 30);
+        chipRect.setAttribute("y", 400);
+        chipRect.setAttribute("width", 145);
+        chipRect.setAttribute("height", 24);
+        chipRect.setAttribute("rx", 12);
+        chipRect.setAttribute("fill", "#fff1e4");
+        chipRect.setAttribute("stroke", "#f47721");
+        chip.appendChild(chipRect);
+        const chipText = document.createElementNS(svgNS, "text");
+        chipText.setAttribute("x", 40);
+        chipText.setAttribute("y", 416);
+        chipText.setAttribute("style", "font-size:9px;fill:#b4530c;");
+        chipText.textContent = "\"" + QUERY_TEXT.slice(0, 26) + "...\"";
+        chip.appendChild(chipText);
+        queryLayer.appendChild(chip);
+        requestAnimationFrame(() => chip.classList.add("shown"));
+
+        await sleep(700);
+        setCaption("The query is passed through the same encoder model as the documents.");
+        await pulseEncoder();
+        await sleep(150);
+
+        chip.classList.remove("shown");
+        await sleep(350);
+
+        const queryDot = document.createElementNS(svgNS, "circle");
+        queryDot.setAttribute("cx", QUERY_TARGET.tx);
+        queryDot.setAttribute("cy", QUERY_TARGET.ty);
+        queryDot.setAttribute("r", 9);
+        queryDot.setAttribute("fill", "#f47721");
+        queryDot.setAttribute("class", "queryDot");
+        queryLayer.appendChild(queryDot);
+        requestAnimationFrame(() => queryDot.classList.add("shown"));
+
+        await sleep(700);
+
+        // ---- Phase 3: compare with every document ----
+        setCaption("Step 3 of 4 — The query's position is compared with every document using cosine similarity.");
+
+        DOCS.forEach((doc, i) => {
+            const line = document.createElementNS(svgNS, "line");
+            line.setAttribute("x1", QUERY_TARGET.tx);
+            line.setAttribute("y1", QUERY_TARGET.ty);
+            line.setAttribute("x2", doc.tx);
+            line.setAttribute("y2", doc.ty);
+            line.setAttribute("class", "simLine");
+            line.setAttribute("id", "line-" + i);
+            linesLayer.appendChild(line);
+            requestAnimationFrame(() => line.classList.add("shown"));
+        });
+
+        await sleep(1100);
+
+        // ---- Phase 4: rank and highlight the closest ----
+        setCaption("Step 4 of 4 — The closest points are the most relevant documents.");
+
+        DOCS.forEach((doc, i) => {
+            const line = document.getElementById("line-" + i);
+            if (TOP_K.includes(i)) {
+                line.classList.add("hot");
+            } else {
+                line.classList.add("cold");
+            }
+        });
+
+        await sleep(500);
+
+        TOP_K.forEach((docIndex, rank) => {
+            const doc = DOCS[docIndex];
+            const badge = document.createElementNS(svgNS, "g");
+            badge.setAttribute("class", "rankBadge");
+            const circle = document.createElementNS(svgNS, "circle");
+            circle.setAttribute("cx", doc.tx + 14);
+            circle.setAttribute("cy", doc.ty - 14);
+            circle.setAttribute("r", 10);
+            badge.appendChild(circle);
+            const text = document.createElementNS(svgNS, "text");
+            text.setAttribute("x", doc.tx + 14);
+            text.setAttribute("y", doc.ty - 10);
+            text.textContent = String(rank + 1);
+            badge.appendChild(text);
+            rankLayer.appendChild(badge);
+            requestAnimationFrame(() => badge.classList.add("shown"));
+        });
+
+        await sleep(700);
+        setCaption("Ranked results are returned to the user, best match first.");
+
+        TOP_K.forEach((docIndex, rank) => {
+            const doc = DOCS[docIndex];
+            const score = MOCK_SCORES[docIndex];
+
+            const row = document.createElement("div");
+            row.className = "resultRow";
+
+            const rankEl = document.createElement("div");
+            rankEl.className = "resultRank";
+            rankEl.textContent = "#" + (rank + 1);
+
+            const titleEl = document.createElement("div");
+            titleEl.className = "resultTitle";
+            titleEl.textContent = doc.title;
+
+            const trackEl = document.createElement("div");
+            trackEl.className = "resultBarTrack";
+            const fillEl = document.createElement("div");
+            fillEl.className = "resultBarFill";
+            trackEl.appendChild(fillEl);
+
+            const scoreEl = document.createElement("div");
+            scoreEl.className = "resultScore";
+            scoreEl.textContent = score.toFixed(2);
+
+            row.appendChild(rankEl);
+            row.appendChild(titleEl);
+            row.appendChild(trackEl);
+            row.appendChild(scoreEl);
+            resultList.appendChild(row);
+
+            requestAnimationFrame(() => {
+                row.classList.add("shown");
+                setTimeout(() => { fillEl.style.width = (score * 100) + "%"; }, 120);
+            });
+        });
+    }
+
+    document.getElementById("playBtn").addEventListener("click", () => { playAnimation(); });
+    document.getElementById("replayBtn").addEventListener("click", () => { reset(); });
+
+    reset();
+})();
+</script>
+"""
+
+
+def render_concept_animation():
+    render_html('<div class="content-subheading">How Semantic Search Works — Animated Overview</div>')
+
+    st.caption(
+        "This walkthrough uses made-up documents and positions purely to illustrate the "
+        "idea. The real dataset and your own queries are used further down, in "
+        "\"Try It on the Real Dataset\"."
+    )
+
+    components.html(CONCEPT_ANIMATION_HTML, height=640, scrolling=False)
+
+# ============================================================
 # EXTRA STYLES FOR THE LIVE PROCESS VIEW
 # ============================================================
 
@@ -951,21 +1513,6 @@ render_html(
         border-color: #e2e2e2;
         color: #9a9a9a;
     }
-
-    .live-log {
-        background: #0f1b24;
-        color: #d7f0ff;
-        font-family: "Consolas", "Monaco", monospace;
-        font-size: 13px;
-        line-height: 1.55;
-        padding: 14px 16px;
-        border-radius: 5px;
-        min-height: 120px;
-        white-space: pre-wrap;
-    }
-
-    .live-log .log-ok { color: #7ee2a8; }
-    .live-log .log-run { color: #ffc166; }
 
     .quiz-progress {
         color: #666666;
@@ -1650,11 +2197,6 @@ def render_pipeline(stages, active=None):
     render_html(pipeline_markup(stages, active))
 
 
-def log_markup(lines):
-    body = "<br>".join(lines)
-    return f'<div class="live-log">{body}</div>'
-
-
 INDEX_STAGES = [
     "Documents",
     "Preprocessing",
@@ -2044,354 +2586,632 @@ def render_procedure():
 
 
 # ============================================================
-# REDESIGNED INTERACTIVE SEMANTIC SEARCH SIMULATION
+# SIMULATION: DATASET PANEL
 # ============================================================
 
-SIMULATION_STAGES = [
-    "Document Collection",
-    "Text Processing",
-    "Dense Embeddings",
-    "Vector Collection",
-    "User Query",
-    "Query Embedding",
-    "Cosine Similarity",
-    "Ranking",
-    "Top-K Results",
-]
-
-
-def sim_header(title, description=None):
-    st.markdown(f"### {title}")
-    if description:
-        st.caption(description)
-
-
-def sim_stage_strip(active_stage):
-    cols = st.columns(len(SIMULATION_STAGES))
-    for idx, (col, stage_name) in enumerate(zip(cols, SIMULATION_STAGES)):
-        with col:
-            if idx < active_stage:
-                st.success(f"✓ {idx + 1}")
-            elif idx == active_stage:
-                st.info(f"● {idx + 1}")
-            else:
-                st.caption(f"○ {idx + 1}")
-            st.caption(stage_name)
-
-
-def sim_document_card(row):
-    with st.container(border=True):
-        st.markdown(f"**{row['id']} · {row['title']}**")
-        st.caption(f"{row['category']} · {row.get('source', 'Document Collection')}")
-        preview = str(row['content']).replace("\n", " ")
-        st.write(preview[:170] + ("…" if len(preview) > 170 else ""))
-
-
 def render_dataset_panel(documents_df, source_label):
-    sim_header(
-        "1. Document Collection",
-        "A small representative preview is shown while the full collection is retained for real embedding generation.",
-    )
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Total documents", len(documents_df))
-    c2.metric("Categories", documents_df["category"].nunique())
-    c3.metric("Average words", int(documents_df["word_count"].mean()))
-    c4.metric("Sources", documents_df["source"].nunique())
-    st.caption(f"Collection source: {source_label}")
+    render_html('<div class="content-subheading">1. Document Collection</div>')
 
-    preview_count = min(6, len(documents_df))
-    preview_df = documents_df.head(preview_count)
-    card_cols = st.columns(3)
-    for index, (_, row) in enumerate(preview_df.iterrows()):
-        with card_cols[index % 3]:
-            sim_document_card(row)
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total Documents", len(documents_df))
+    col2.metric("Categories", documents_df["category"].nunique())
+    col3.metric("Average Words", int(documents_df["word_count"].mean()))
+    col4.metric("Sources", documents_df["source"].nunique())
 
-    with st.expander("Browse the complete document collection"):
+    st.caption(f"Dataset loaded from: {source_label}")
+
+    with st.expander("Browse the document collection", expanded=False):
         categories = ["All categories"] + sorted(documents_df["category"].unique().tolist())
-        selected = st.selectbox("Filter by category", categories, key="sim_category_filter")
-        keyword = st.text_input("Search titles or content", key="sim_keyword_filter")
+
+        selected = st.selectbox("Filter by category", categories, key="dataset_category_filter")
+        keyword = st.text_input("Filter by keyword in title or content", key="dataset_keyword_filter")
+
         view = documents_df
+
         if selected != "All categories":
             view = view[view["category"] == selected]
+
         if keyword.strip():
-            mask = view["title"].str.contains(keyword, case=False, na=False) | view["content"].str.contains(keyword, case=False, na=False)
+            mask = view["title"].str.contains(keyword, case=False, na=False) | view[
+                "content"
+            ].str.contains(keyword, case=False, na=False)
             view = view[mask]
-        st.dataframe(view, use_container_width=True, hide_index=True, height=320)
+
+        st.caption(f"Showing {len(view)} of {len(documents_df)} documents.")
+        st.dataframe(view, use_container_width=True, hide_index=True, height=340)
+
         st.download_button(
-            "Download document collection",
+            "Download Document Collection (CSV)",
             data=documents_df.to_csv(index=False),
             file_name="document_collection.csv",
             mime="text/csv",
-            key="download_sim_documents",
         )
 
-    with st.expander("Add your own documents"):
-        st.write("Upload CSV, JSON, or TXT documents. Uploaded documents are appended to the default collection.")
-        uploaded_file = st.file_uploader("Upload document dataset", type=["csv", "json", "txt"], key="sim_dataset_uploader")
-        a, b = st.columns(2)
-        with a:
-            if st.button("Add uploaded documents", use_container_width=True, key="sim_add_upload"):
+    with st.expander("Add your own documents", expanded=False):
+        st.write(
+            "Upload a CSV (columns: id, title, category, content), a JSON array of "
+            "objects, or a TXT file where each blank-line-separated block is one "
+            "document. Uploaded documents are appended to the default collection."
+        )
+
+        uploaded_file = st.file_uploader(
+            "Upload a document dataset",
+            type=["csv", "txt", "json"],
+            key="dataset_uploader",
+        )
+
+        upload_col, clear_col = st.columns(2)
+
+        with upload_col:
+            if st.button("Add Uploaded Documents", use_container_width=True):
                 if uploaded_file is None:
                     st.warning("Please choose a file first.")
                 else:
                     try:
-                        st.session_state.uploaded_documents = parse_uploaded_file(uploaded_file)
+                        parsed = parse_uploaded_file(uploaded_file)
+                        st.session_state.uploaded_documents = parsed
                         st.session_state.index_built = False
-                        st.session_state.upload_message = f"Added {len(st.session_state.uploaded_documents)} documents. Rebuild the index to include them."
-                        st.rerun()
+                        st.session_state.upload_message = (
+                            f"Added {len(parsed)} documents from {uploaded_file.name}. "
+                            "Rebuild the embedding index to search them."
+                        )
                     except Exception as error:
+                        st.session_state.upload_message = ""
                         st.error(f"Could not read the file: {error}")
-        with b:
-            if st.button("Remove uploaded documents", use_container_width=True, key="sim_remove_upload"):
+
+        with clear_col:
+            if st.button("Remove Uploaded Documents", use_container_width=True):
                 st.session_state.uploaded_documents = None
                 st.session_state.index_built = False
                 st.session_state.upload_message = "Uploaded documents removed."
-                st.rerun()
-        if st.session_state.get("upload_message"):
+
+        if st.session_state.upload_message:
             st.info(st.session_state.upload_message)
 
 
-def render_preprocessing_stage(documents_df):
-    sim_header("2. Text Processing", "Raw text is normalized into a consistent representation before encoding.")
-    row = documents_df.iloc[0]
-    raw_text = str(row["content"])
-    normalized = " ".join(raw_text.lower().split())
-    tokens = normalized.split()
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown("**Raw Text**")
-        st.info(raw_text[:260])
-    with c2:
-        st.markdown("**Tokenization / Normalization**")
-        st.info(" · ".join(tokens[:18]) + (" …" if len(tokens) > 18 else ""))
-    with c3:
-        st.markdown("**Processed Text**")
-        st.success(normalized[:260])
-    st.progress(1.0, text=f"Processed preview: {len(tokens)} tokens · Full collection: {len(documents_df)} documents")
+# ============================================================
+# SIMULATION: STAGE A WITH LIVE VISUALISATION
+# ============================================================
 
+def run_live_indexing(documents_df, show_progress, batch_size=16):
+    """Encode the collection batch by batch. A clean animated status replaces
+    the previous raw text log -- just the pipeline lighting up, a progress bar
+    and a one-line caption, which is what actually reads as "happening" to a
+    viewer rather than as backend output."""
+    pipeline_placeholder = st.empty()
+    caption_placeholder = st.empty()
+    progress_placeholder = st.empty()
 
-def render_embedding_stage(documents_df, embeddings):
-    sim_header("3. Dense Embeddings", "SentenceTransformer maps each document into a fixed-length numerical vector.")
+    def stage(active):
+        if show_progress:
+            pipeline_placeholder.markdown(
+                pipeline_markup(INDEX_STAGES, active), unsafe_allow_html=True
+            )
+
+    start = time.perf_counter()
+
+    stage(0)
+    if show_progress:
+        caption_placeholder.caption(f"Reading {len(documents_df)} documents ...")
+        time.sleep(0.25)
+
+    stage(1)
+    texts = documents_df["content"].astype(str).tolist()
+    if show_progress:
+        caption_placeholder.caption("Preprocessing text (tokenizing, cleaning) ...")
+        time.sleep(0.25)
+
+    stage(2)
+    if show_progress:
+        caption_placeholder.caption(f"Loading the {MODEL_NAME} model ...")
+
     model = load_embedding_model()
-    dimension = int(embeddings.shape[1])
-    sample_text = str(documents_df.iloc[0]["content"])
-    sample_vector = embeddings[0]
-    st.markdown("**Document Text → SentenceTransformer → Numerical Vector**")
-    flow_cols = st.columns([2, 1, 2, 1, 3])
-    with flow_cols[0]:
-        st.info(sample_text[:180] + "…")
-    with flow_cols[1]:
-        st.markdown("### →")
-    with flow_cols[2]:
-        st.success(f"**{MODEL_NAME}**\n\nTransformer encoder")
-    with flow_cols[3]:
-        st.markdown("### →")
-    with flow_cols[4]:
-        st.code("[" + ", ".join(f"{v:.2f}" for v in sample_vector[:5]) + ", ...]", language="text")
-        st.caption(f"Actual dimension: {dimension}")
-    st.info("A SentenceTransformer model converts text into a numerical vector that represents its semantic meaning.")
-    vector_df = pd.DataFrame({"Dimension": [f"d{i}" for i in range(min(24, dimension))], "Value": sample_vector[:min(24, dimension)]})
-    fig = px.bar(vector_df, x="Dimension", y="Value", title=f"First {len(vector_df)} dimensions of a document embedding")
-    fig.update_layout(height=300, margin=dict(l=10, r=10, t=50, b=10))
-    st.plotly_chart(fig, use_container_width=True)
-    st.caption(f"Loaded model: {model.__class__.__name__} · Embedding dimension: {dimension}")
 
+    stage(3)
+    progress = progress_placeholder.progress(0.0) if show_progress else None
 
-def render_vector_collection_stage(documents_df, embeddings):
-    sim_header("4. Vector Collection", "Document vectors are stored in memory and reused for every query.")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Vectors stored", embeddings.shape[0])
-    c2.metric("Embedding dimension", embeddings.shape[1])
-    c3.metric("Matrix shape", f"{embeddings.shape[0]} × {embeddings.shape[1]}")
-    c4.metric("Collection status", "Ready")
-    st.success("Vector collection ready for semantic comparison.")
-    st.write("This implementation stores document vectors in memory. It directly compares the query vector with the stored matrix when a specialized vector database is not used.")
-    with st.expander("Inspect stored vectors"):
-        st.dataframe(
-            pd.DataFrame(embeddings[:5, :min(12, embeddings.shape[1])], index=documents_df["id"].head(5), columns=[f"d{i}" for i in range(min(12, embeddings.shape[1]))]).round(4),
-            use_container_width=True,
+    chunks = []
+    encoded = 0
+
+    for start_index in range(0, len(texts), batch_size):
+        batch = texts[start_index:start_index + batch_size]
+
+        vectors = model.encode(
+            batch,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+            show_progress_bar=False,
         )
 
+        chunks.append(vectors)
+        encoded += len(batch)
 
-def render_query_embedding_stage(query, query_vector):
-    sim_header("6. Query Embedding", "The query is encoded using the same model and vector space as the documents.")
-    st.info(f"User query: {query}")
-    st.markdown("**User Query → Same SentenceTransformer Model → Query Vector**")
-    st.code("[" + ", ".join(f"{v:.2f}" for v in query_vector[:5]) + ", ...]", language="text")
-    st.caption(f"Actual query vector dimension: {len(query_vector)}")
-    qdf = pd.DataFrame({"Dimension": [f"d{i}" for i in range(min(24, len(query_vector)))], "Value": query_vector[:min(24, len(query_vector))]})
-    fig = px.bar(qdf, x="Dimension", y="Value", title="Query embedding preview")
-    fig.update_layout(height=280, margin=dict(l=10, r=10, t=50, b=10))
-    st.plotly_chart(fig, use_container_width=True)
-    st.success("Documents and queries now exist in the same vector space.")
+        if show_progress:
+            progress.progress(encoded / len(texts))
+            caption_placeholder.caption(
+                f"Encoding documents into vectors ... {encoded}/{len(texts)}"
+            )
 
+    embeddings = np.vstack(chunks)
 
-def similarity_label(score):
-    if score >= 0.70:
-        return "High similarity"
-    if score >= 0.40:
-        return "Medium similarity"
-    return "Low similarity"
+    stage(4)
+    elapsed = time.perf_counter() - start
 
+    if show_progress:
+        caption_placeholder.caption(
+            f"Embedding index built: {embeddings.shape[0]} vectors x "
+            f"{embeddings.shape[1]} dimensions in {elapsed:.2f} s."
+        )
+        progress_placeholder.empty()
 
-def render_similarity_stage(documents_df, scores):
-    sim_header("7. Cosine Similarity", "Each query vector is compared with every stored document vector using the actual calculated score.")
-    st.latex(r"\text{Cosine Similarity}(A,B)=\frac{A\cdot B}{\|A\|\times\|B\|}")
-    st.write("Cosine similarity compares the direction of two vectors. Higher values indicate that the texts are more semantically aligned in this embedding space.")
-    ranked_indices = np.argsort(scores)[::-1][:8]
-    rows = []
-    for idx in ranked_indices:
-        rows.append({"Document": documents_df.iloc[idx]["title"], "Document ID": documents_df.iloc[idx]["id"], "Score": float(scores[idx]), "Status": similarity_label(float(scores[idx]))})
-    score_df = pd.DataFrame(rows)
-    st.dataframe(score_df.style.format({"Score": "{:.4f}"}), use_container_width=True, hide_index=True)
-    fig = px.bar(score_df.sort_values("Score"), x="Score", y="Document", orientation="h", color="Status", range_x=[-1, 1], title="Representative cosine similarity scores")
-    fig.update_layout(height=380, margin=dict(l=10, r=10, t=50, b=10))
-    st.plotly_chart(fig, use_container_width=True)
+    store_index(embeddings, documents_df, elapsed)
+
+    return embeddings
 
 
-def render_ranking_stage(documents_df, scores, top_k, threshold):
-    sim_header("8. Ranking Documents by Semantic Similarity", "Documents are ordered from the highest actual similarity score to the lowest.")
+def render_embedding_map_animated(embeddings, documents_df):
+    """An actually-animated Plotly scatter: categories reveal one group at a
+    time with a Play button, so the viewer watches clusters form instead of
+    seeing a finished plot appear all at once."""
+    points = pca_projection(embeddings)
+
+    frame_df = pd.DataFrame(
+        {
+            "x": points[:, 0],
+            "y": points[:, 1],
+            "Title": documents_df["title"],
+            "Category": documents_df["category"],
+        }
+    )
+
+    categories = list(dict.fromkeys(frame_df["Category"].tolist()))
+    palette = px.colors.qualitative.Set2
+    color_map = {cat: palette[i % len(palette)] for i, cat in enumerate(categories)}
+
+    x_pad = (frame_df["x"].max() - frame_df["x"].min()) * 0.1 + 0.01
+    y_pad = (frame_df["y"].max() - frame_df["y"].min()) * 0.1 + 0.01
+    x_range = [frame_df["x"].min() - x_pad, frame_df["x"].max() + x_pad]
+    y_range = [frame_df["y"].min() - y_pad, frame_df["y"].max() + y_pad]
+
+    frames = []
+    shown_categories = []
+
+    for category in categories:
+        shown_categories.append(category)
+        visible = frame_df[frame_df["Category"].isin(shown_categories)]
+
+        frame_traces = [
+            go.Scatter(
+                x=visible.loc[visible["Category"] == cat, "x"],
+                y=visible.loc[visible["Category"] == cat, "y"],
+                mode="markers",
+                name=cat,
+                marker={"size": 10, "color": color_map[cat], "opacity": 0.85},
+                text=visible.loc[visible["Category"] == cat, "Title"],
+                hoverinfo="text",
+            )
+            for cat in categories
+        ]
+
+        frames.append(go.Frame(data=frame_traces, name=category))
+
+    initial_traces = [
+        go.Scatter(x=[], y=[], mode="markers", name=cat, marker={"color": color_map[cat]})
+        for cat in categories
+    ]
+
+    figure = go.Figure(
+        data=initial_traces,
+        frames=frames,
+        layout=go.Layout(
+            title="Embedding space (documents appear category by category)",
+            xaxis={"title": "Component 1", "range": x_range},
+            yaxis={"title": "Component 2", "range": y_range},
+            height=470,
+            updatemenus=[
+                {
+                    "type": "buttons",
+                    "x": 0,
+                    "y": 1.12,
+                    "buttons": [
+                        {
+                            "label": "&#9654; Play",
+                            "method": "animate",
+                            "args": [
+                                None,
+                                {
+                                    "frame": {"duration": 650, "redraw": True},
+                                    "transition": {"duration": 200},
+                                    "fromcurrent": False,
+                                },
+                            ],
+                        }
+                    ],
+                }
+            ],
+        ),
+    )
+
+    st.plotly_chart(figure, use_container_width=True)
+
+    st.caption(
+        "Press Play to watch each category's documents land in the space. "
+        "Documents about similar topics cluster together -- that closeness is "
+        "exactly what cosine similarity measures at query time."
+    )
+
+
+def render_indexing_panel(documents_df, show_progress):
+    render_html('<div class="stage-label">STAGE A</div>')
+    render_html('<div class="content-subheading">2. Build the Embedding Index</div>')
+
+    if not index_is_current(documents_df):
+        render_html(
+            """
+            <div class="info-box">
+                The embedding index is not up to date with the current document
+                collection. Build the index before running a search.
+            </div>
+            """
+        )
+        render_pipeline(INDEX_STAGES, 0)
+
+    if st.button("Build Embedding Index", use_container_width=True):
+        run_live_indexing(documents_df, show_progress)
+        st.session_state.last_results = []
+        st.success("Embedding index created successfully.")
+
+    if index_is_current(documents_df):
+        embeddings = st.session_state.document_embeddings
+
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Documents Indexed", embeddings.shape[0])
+        col2.metric("Embedding Dimension", embeddings.shape[1])
+        col3.metric("Index Build Time", f"{st.session_state.index_build_time:.2f} sec")
+        col4.metric("Index Status", "Ready")
+
+        with st.expander("View Embedding Details"):
+            st.write(f"**Model:** {MODEL_NAME}")
+            st.write(f"**Number of documents:** {embeddings.shape[0]}")
+            st.write(f"**Embedding dimension:** {embeddings.shape[1]}")
+            st.write("**Embedding type:** Dense floating-point vector (L2 normalised)")
+            st.write(f"**Index memory:** {embeddings.nbytes / 1024:.1f} KB")
+
+            st.caption(
+                f"First 5 documents, first 16 of {embeddings.shape[1]} dimensions."
+            )
+
+            st.dataframe(
+                pd.DataFrame(
+                    embeddings[:5, :16].round(4),
+                    index=st.session_state.indexed_documents["id"].head(5),
+                    columns=[f"d{i}" for i in range(16)],
+                ),
+                use_container_width=True,
+            )
+
+        with st.expander("Watch the embedding space form (animated)", expanded=False):
+            render_embedding_map_animated(embeddings, st.session_state.indexed_documents)
+
+
+# ============================================================
+# SIMULATION: STAGE B WITH LIVE VISUALISATION
+# ============================================================
+
+def run_live_search(query, documents_df, embeddings, top_k, threshold, show_progress):
+    """Stage B, with the pipeline strip lighting up stage by stage instead of
+    a scrolling text log."""
+    pipeline_placeholder = st.empty()
+    caption_placeholder = st.empty()
+
+    def stage(active, caption=""):
+        if show_progress:
+            pipeline_placeholder.markdown(
+                pipeline_markup(QUERY_STAGES, active), unsafe_allow_html=True
+            )
+            if caption:
+                caption_placeholder.caption(caption)
+            time.sleep(0.3)
+
+    start = time.perf_counter()
+
+    stage(0, f'Query received: "{query}"')
+    stage(1, "Preprocessing the query text ...")
+    stage(2, "Encoding the query with the same model used for the documents ...")
+
+    query_vector, scores = compute_similarities(query, documents_df, embeddings)
+
+    stage(3, f"Computing cosine similarity against {len(documents_df)} documents ...")
+
+    above = int((scores >= threshold).sum())
+    stage(4, f"Ranking by score. {above} of {len(scores)} documents pass the threshold.")
+
     results = assemble_results(scores, documents_df, top_k, threshold)
+    elapsed = time.perf_counter() - start
+
+    stage(len(QUERY_STAGES) - 1, f"Returning the top {len(results)} documents.")
+
+    if show_progress:
+        pipeline_placeholder.markdown(
+            pipeline_markup(QUERY_STAGES, len(QUERY_STAGES)), unsafe_allow_html=True
+        )
+
+    return results, elapsed, int(query_vector.shape[0]), scores
+
+
+def render_similarity_radar(results):
+    """An animated Plotly chart: the query sits at the centre and each result
+    starts on the outer ring, then pulls in toward the centre by exactly how
+    similar it is. Press Play to watch closeness happen -- an intuitive,
+    animated stand-in for what cosine similarity means."""
     if not results:
-        st.warning("No documents reached the selected similarity threshold. Lower the threshold or rephrase the query.")
-        return results
+        return
+
+    count = len(results)
+    angles = np.linspace(0, 2 * np.pi, count, endpoint=False)
+
+    start_x = np.cos(angles)
+    start_y = np.sin(angles)
+
+    end_radius = np.array([max(0.05, 1 - r["Similarity"]) for r in results])
+    end_x = end_radius * np.cos(angles)
+    end_y = end_radius * np.sin(angles)
+
+    titles = [r["Title"] for r in results]
+    sims = [r["Similarity"] for r in results]
+    hover = [f"{t}<br>similarity {s:.3f}" for t, s in zip(titles, sims)]
+
+    ring_theta = np.linspace(0, 2 * np.pi, 100)
+
+    start_frame = go.Frame(
+        data=[
+            go.Scatter(
+                x=np.cos(ring_theta), y=np.sin(ring_theta),
+                mode="lines", line={"color": "#dddddd", "dash": "dot"}, showlegend=False,
+            ),
+            go.Scatter(x=[0], y=[0], mode="markers+text", text=["Your query"],
+                       textposition="bottom center", marker={"size": 18, "color": "#f47721"},
+                       showlegend=False),
+            go.Scatter(x=start_x, y=start_y, mode="markers+text",
+                       text=[f"#{i + 1}" for i in range(count)], textposition="top center",
+                       marker={"size": 13, "color": "#2696d2"},
+                       hovertext=hover, hoverinfo="text", showlegend=False),
+        ],
+        name="start",
+    )
+
+    end_frame = go.Frame(
+        data=[
+            go.Scatter(
+                x=np.cos(ring_theta), y=np.sin(ring_theta),
+                mode="lines", line={"color": "#dddddd", "dash": "dot"}, showlegend=False,
+            ),
+            go.Scatter(x=[0], y=[0], mode="markers+text", text=["Your query"],
+                       textposition="bottom center", marker={"size": 18, "color": "#f47721"},
+                       showlegend=False),
+            go.Scatter(x=end_x, y=end_y, mode="markers+text",
+                       text=[f"#{i + 1}" for i in range(count)], textposition="top center",
+                       marker={"size": 13, "color": "#198754"},
+                       hovertext=hover, hoverinfo="text", showlegend=False),
+        ],
+        name="end",
+    )
+
+    figure = go.Figure(
+        data=start_frame.data,
+        frames=[start_frame, end_frame],
+        layout=go.Layout(
+            title="How close each result is to your query (press Play)",
+            xaxis={"visible": False, "range": [-1.2, 1.2]},
+            yaxis={"visible": False, "range": [-1.2, 1.2], "scaleanchor": "x"},
+            height=430,
+            showlegend=False,
+            updatemenus=[
+                {
+                    "type": "buttons",
+                    "x": 0,
+                    "y": 1.12,
+                    "buttons": [
+                        {
+                            "label": "&#9654; Play",
+                            "method": "animate",
+                            "args": [
+                                ["end"],
+                                {
+                                    "frame": {"duration": 1200, "redraw": True},
+                                    "transition": {"duration": 1200, "easing": "cubic-in-out"},
+                                    "fromcurrent": False,
+                                },
+                            ],
+                        },
+                        {
+                            "label": "&#8635; Reset",
+                            "method": "animate",
+                            "args": [
+                                ["start"],
+                                {
+                                    "frame": {"duration": 0, "redraw": True},
+                                    "transition": {"duration": 0},
+                                },
+                            ],
+                        },
+                    ],
+                }
+            ],
+        ),
+    )
+
+    st.plotly_chart(figure, use_container_width=True)
+
+    st.caption(
+        "Every result starts on the outer ring. Pressing Play pulls each one "
+        "toward your query by exactly its similarity score -- the closer it "
+        "ends up, the more relevant it is."
+    )
+
+
+def render_search_panel(documents_df, show_progress):
+    render_html('<div class="stage-label">STAGE B</div>')
+    render_html('<div class="content-subheading">3. Run a Query</div>')
+
+    query = st.text_area(
+        "Enter your search query",
+        value=st.session_state.last_query,
+        placeholder="Example: How do machines learn from data?",
+        height=100,
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        top_k = st.slider("Number of results to retrieve (Top-K)", 1, 20, 5)
+
+    with col2:
+        threshold = st.slider("Minimum similarity threshold", 0.0, 1.0, 0.25, 0.05)
+
+    if st.button("Run Semantic Search", use_container_width=True):
+        if not index_is_current(documents_df):
+            st.warning("Build the embedding index first (Stage A).")
+
+        elif not query.strip():
+            st.warning("Please enter a query.")
+
+        else:
+            results, elapsed, dimension, scores = run_live_search(
+                query,
+                st.session_state.indexed_documents,
+                st.session_state.document_embeddings,
+                top_k,
+                threshold,
+                show_progress,
+            )
+
+            st.session_state.last_query = query
+            st.session_state.last_results = results
+            st.session_state.last_query_time = elapsed
+            st.session_state.last_embedding_dimension = dimension
+            st.session_state.last_documents_compared = len(scores)
+            st.session_state.last_threshold = threshold
+            st.session_state.last_score_distribution = scores
+
+            if not results:
+                st.warning(
+                    "No document reached the similarity threshold. "
+                    "Lower the threshold or rephrase the query."
+                )
+
+
+def render_results_panel():
+    results = st.session_state.last_results
+
+    if not results:
+        return
+
+    render_html('<div class="content-subheading">4. Query Processing Summary</div>')
+
+    st.info(f"Query received: {st.session_state.last_query}")
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Query Embedding Dimension", st.session_state.last_embedding_dimension)
+    col2.metric("Documents Compared", st.session_state.last_documents_compared)
+    col3.metric("Search Time", f"{st.session_state.last_query_time * 1000:.2f} ms")
+    col4.metric("Documents Returned", len(results))
+
+    render_html('<div class="content-subheading">5. Ranked Results</div>')
+
+    results_df = pd.DataFrame(results)
+
+    table_df = results_df[
+        ["Rank", "Document ID", "Title", "Category", "Source", "Word Count", "Similarity"]
+    ].copy()
+    table_df["Similarity"] = table_df["Similarity"].round(4)
+
+    with st.expander("View results as a table"):
+        st.dataframe(table_df, use_container_width=True, hide_index=True)
+
+    chart_df = results_df.copy()
+    chart_df["Document"] = chart_df["Rank"].astype(str) + ". " + chart_df["Title"]
+    chart_df = chart_df.sort_values("Similarity").reset_index(drop=True)
+    chart_df["Score"] = chart_df["Similarity"].round(4)
+
+    figure = px.bar(
+        chart_df,
+        x="Similarity",
+        y="Document",
+        orientation="h",
+        title="Cosine Similarity of Retrieved Documents",
+        text="Score",
+        labels={"Similarity": "Cosine Similarity", "Document": "Document"},
+    )
+
+    figure.update_layout(height=430, xaxis_range=[0, 1])
+
+    st.plotly_chart(figure, use_container_width=True)
+
+    with st.expander("Watch the results converge toward your query (animated)", expanded=False):
+        render_similarity_radar(results)
+
     for result in results:
-        with st.container(border=True):
-            c1, c2, c3 = st.columns([1, 5, 2])
-            c1.markdown(f"### #{result['Rank']}")
-            c2.markdown(f"**{result['Title']}**")
-            c2.caption(f"{result['Document ID']} · {result['Category']}")
-            c3.metric("Similarity", f"{result['Similarity']:.4f}")
-            st.progress(max(0.0, min(1.0, result["Similarity"])), text=similarity_label(result["Similarity"]))
-            st.success("Retrieved Result")
-    return results
+        snippet = result["Content"]
+        if len(snippet) > 350:
+            snippet = snippet[:350] + "..."
+
+        render_html(
+            f"""
+            <div class="result-card">
+                <div class="result-rank">#{result["Rank"]}</div>
+                <div class="result-title">{escape_html(result["Title"])}</div>
+                <div class="result-category">{escape_html(result["Category"])}</div>
+                <div class="result-content">{escape_html(snippet)}</div>
+                <div class="result-score">Cosine Similarity: {result["Similarity"]:.4f}</div>
+                <div class="result-meta">
+                    Document ID: {escape_html(result["Document ID"])}
+                    &nbsp;|&nbsp; Source: {escape_html(result["Source"])}
+                    &nbsp;|&nbsp; Words: {result["Word Count"]}
+                </div>
+            </div>
+            """
+        )
+
+    if st.button("Record Current Trial", use_container_width=True):
+        record_trial()
+        st.success("Trial recorded successfully.")
 
 
 def render_simulation():
-    sim_header("Simulation", "Follow the complete semantic search workflow from document collection to Top-K retrieval.")
+    render_html('<div class="content-heading">Simulation</div>')
+
+    render_concept_animation()
+
+    render_html('<hr style="border:none;border-top:1px solid #e5e5e5;margin:28px 0;">')
+
+    render_html('<div class="content-subheading">Try It on the Real Dataset</div>')
+
+    render_html(
+        """
+        <div class="info-box">
+            This part runs the same process on the actual document collection and
+            your own queries. Stage A builds the embedding index; Stage B searches it.
+        </div>
+        """
+    )
+
+    show_progress = st.checkbox(
+        "Show the pipeline animation while indexing and searching",
+        value=True,
+    )
+
     documents_df = get_active_documents()
     _, source_label = load_base_documents()
-    if st.session_state.get("uploaded_documents") is not None:
-        source_label = f"{source_label} + uploaded documents"
 
-    top_k_options = [3, 5, 10]
-    control_a, control_b, control_c, control_d = st.columns(4)
-    with control_a:
-        speed = st.selectbox("Animation speed", ["Slow", "Normal", "Fast"], index=1, key="sim_speed")
-    with control_b:
-        top_k = st.selectbox("Top-K", top_k_options, index=1, key="sim_top_k")
-    with control_c:
-        threshold = st.slider("Minimum similarity", 0.0, 1.0, 0.25, 0.05, key="sim_threshold")
-    with control_d:
-        st.metric("Speed mode", speed)
+    if st.session_state.uploaded_documents is not None:
+        source_label = f"{source_label} + uploaded file"
 
-    if "sim_stage" not in st.session_state:
-        st.session_state.sim_stage = 0
-    if "sim_query" not in st.session_state:
-        st.session_state.sim_query = "How can machines learn patterns from data?"
+    render_dataset_panel(documents_df, source_label)
+    render_indexing_panel(documents_df, show_progress)
+    render_search_panel(documents_df, show_progress)
+    render_results_panel()
 
-    sim_stage_strip(st.session_state.sim_stage)
-    nav1, nav2, nav3, nav4, nav5 = st.columns(5)
-    with nav1:
-        if st.button("Start", use_container_width=True, key="sim_start"):
-            st.session_state.sim_stage = 0
-            st.session_state.sim_started = True
-            st.rerun()
-    with nav2:
-        if st.button("Previous", use_container_width=True, key="sim_previous"):
-            st.session_state.sim_stage = max(0, st.session_state.sim_stage - 1)
-            st.rerun()
-    with nav3:
-        if st.button("Next Stage", use_container_width=True, key="sim_next"):
-            st.session_state.sim_stage = min(len(SIMULATION_STAGES) - 1, st.session_state.sim_stage + 1)
-            st.rerun()
-    with nav4:
-        if st.button("Restart", use_container_width=True, key="sim_restart"):
-            for key in ["sim_query_vector", "sim_scores", "sim_results", "sim_search_time"]:
-                st.session_state.pop(key, None)
-            st.session_state.sim_stage = 0
-            st.rerun()
-    with nav5:
-        if st.button("Skip to Results", use_container_width=True, key="sim_skip"):
-            st.session_state.sim_stage = len(SIMULATION_STAGES) - 1
-            st.rerun()
-
-    st.progress((st.session_state.sim_stage + 1) / len(SIMULATION_STAGES), text=f"Current stage: {SIMULATION_STAGES[st.session_state.sim_stage]}")
-
-    if st.session_state.sim_stage == 0:
-        render_dataset_panel(documents_df, source_label)
-    elif st.session_state.sim_stage == 1:
-        render_preprocessing_stage(documents_df)
-    else:
-        if not index_is_current(documents_df):
-            sim_header("Build the Vector Collection", "The actual document embeddings must be created before query comparison.")
-            if st.button("Build Embedding Collection", type="primary", use_container_width=True, key="sim_build_index"):
-                with st.spinner("Generating document embeddings with SentenceTransformer..."):
-                    start = time.perf_counter()
-                    model = load_embedding_model()
-                    texts = documents_df["content"].astype(str).tolist()
-                    embeddings = model.encode(texts, convert_to_numpy=True, normalize_embeddings=True, show_progress_bar=False)
-                    store_index(embeddings, documents_df, time.perf_counter() - start)
-                st.success(f"Created {embeddings.shape[0]} vectors with dimension {embeddings.shape[1]}.")
-                st.rerun()
-            st.info("Click the button above to generate the real document embeddings. The model is cached after the first load.")
-            return
-
-        embeddings = st.session_state.document_embeddings
-        if st.session_state.sim_stage == 2:
-            render_embedding_stage(documents_df, embeddings)
-        elif st.session_state.sim_stage == 3:
-            render_vector_collection_stage(documents_df, embeddings)
-        else:
-            query = st.text_input("Search query", value=st.session_state.sim_query, key="sim_query_input")
-            st.session_state.sim_query = query
-            if st.button("Run Simulation", type="primary", use_container_width=True, key="sim_run"):
-                if not query.strip():
-                    st.warning("Enter a query first.")
-                else:
-                    with st.spinner("Encoding query and calculating cosine similarity..."):
-                        start = time.perf_counter()
-                        query_vector, scores = compute_similarities(query, documents_df, embeddings)
-                        elapsed = time.perf_counter() - start
-                    st.session_state.sim_query_vector = query_vector
-                    st.session_state.sim_scores = scores
-                    st.session_state.sim_search_time = elapsed
-                    st.session_state.sim_results = assemble_results(scores, documents_df, top_k, threshold)
-                    st.session_state.last_query = query
-                    st.session_state.last_results = st.session_state.sim_results
-                    st.session_state.last_query_time = elapsed
-                    st.session_state.last_embedding_dimension = len(query_vector)
-                    st.session_state.last_documents_compared = len(scores)
-                    st.session_state.last_threshold = threshold
-                    st.session_state.last_score_distribution = scores
-                    st.rerun()
-
-            if "sim_query_vector" not in st.session_state:
-                st.info("Enter a query and click Run Simulation to generate the query embedding and actual similarity scores.")
-                return
-
-            query_vector = st.session_state.sim_query_vector
-            scores = st.session_state.sim_scores
-            if st.session_state.sim_stage == 4:
-                st.info(f"Query received: {query}")
-                st.write("The query is now ready to be converted into the same embedding space as the document collection.")
-            elif st.session_state.sim_stage == 5:
-                render_query_embedding_stage(query, query_vector)
-            elif st.session_state.sim_stage == 6:
-                render_similarity_stage(documents_df, scores)
-            elif st.session_state.sim_stage == 7:
-                render_ranking_stage(documents_df, scores, top_k, threshold)
-            else:
-                results = render_ranking_stage(documents_df, scores, top_k, threshold)
-                st.markdown("### 9. Top-K Results")
-                st.success(f"Returned {len(results)} result(s) from Top-{top_k} retrieval.")
-                st.caption(f"Query time: {st.session_state.get('sim_search_time', 0) * 1000:.2f} ms · Compared: {len(scores)} documents · Dimension: {len(query_vector)}")
-                if results:
-                    result_df = pd.DataFrame(results)
-                    st.dataframe(result_df[["Rank", "Document ID", "Title", "Category", "Similarity"]].style.format({"Similarity": "{:.4f}"}), use_container_width=True, hide_index=True)
-                    if st.button("Record Current Trial", use_container_width=True, key="sim_record_trial"):
-                        record_trial()
-                        st.success("Trial recorded successfully.")
 
 # ============================================================
 # REMAINING SECTIONS
