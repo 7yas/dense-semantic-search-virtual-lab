@@ -2350,6 +2350,182 @@ def render_indexing_panel(documents_df, live):
 # SIMULATION: STAGE B WITH LIVE VISUALISATION
 # ============================================================
 
+
+def render_mock_semantic_animation():
+    """Beginner-friendly visual demonstration using illustrative, non-live data."""
+    render_html(
+        """
+        <div class="content-subheading">Interactive Mock Animation</div>
+        <div class="info-box">
+            This animation uses example documents and illustrative scores.
+            It is designed to explain the complete workflow visually before running
+            the actual semantic search on the selected dataset.
+        </div>
+        """
+    )
+
+    mock_query = "How do computers learn from data?"
+    mock_documents = [
+        ("Document A", "Introduction to Machine Learning", 0.94, "Very relevant"),
+        ("Document B", "Supervised Learning Algorithms", 0.88, "Relevant"),
+        ("Document C", "Computer Networks", 0.31, "Weak match"),
+        ("Document D", "Database Management", 0.22, "Low match"),
+    ]
+
+    if st.button("▶ Start Mock Animation", key="start_mock_animation",
+                 use_container_width=True):
+        stage_box = st.empty()
+        visual_box = st.empty()
+        explanation_box = st.empty()
+        progress = st.progress(0)
+
+        def show_stage(number, title, description, percent):
+            stage_box.markdown(
+                f"""
+                <div class="app-card">
+                    <div class="app-card-title">Step {number}: {title}</div>
+                    <div class="app-card-text">{description}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            progress.progress(percent)
+
+        def show_flow(left, middle, right, color="#2696d2"):
+            visual_box.markdown(
+                f"""
+                <div style="display:flex;align-items:center;justify-content:center;
+                            gap:10px;flex-wrap:wrap;margin:14px 0;">
+                    <div style="flex:1;min-width:145px;text-align:center;
+                                padding:18px 10px;border:2px solid {color};
+                                border-radius:12px;background:#f5fbff;
+                                font-weight:700;color:#245b7c;">{left}</div>
+                    <div style="font-size:28px;color:#f47721;font-weight:700;">→</div>
+                    <div style="flex:1;min-width:145px;text-align:center;
+                                padding:18px 10px;border:2px solid {color};
+                                border-radius:12px;background:#f5fbff;
+                                font-weight:700;color:#245b7c;">{middle}</div>
+                    <div style="font-size:28px;color:#f47721;font-weight:700;">→</div>
+                    <div style="flex:1;min-width:145px;text-align:center;
+                                padding:18px 10px;border:2px solid {color};
+                                border-radius:12px;background:#f5fbff;
+                                font-weight:700;color:#245b7c;">{right}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        show_stage(1, "Documents enter the system",
+                   "The system receives a collection of documents. Each document contains text and a topic.",
+                   12)
+        show_flow("📄 Document 1", "📄 Document 2", "📄 Document 3")
+        explanation_box.info("Think of this as placing books on a table before organizing them.")
+        time.sleep(1.2)
+
+        show_stage(2, "The AI model reads the text",
+                   "The SentenceTransformer model processes the meaning of every document.",
+                   28)
+        show_flow("Text", "🧠 AI Model", "Meaning")
+        explanation_box.info("The model does not simply count matching words. It converts meaning into numbers.")
+        time.sleep(1.2)
+
+        show_stage(3, "Text becomes a vector",
+                   "Every document is represented by a dense numerical vector and stored in the index.",
+                   45)
+        show_flow("Document meaning", "🔢 Vector", "🗃️ Vector index")
+        explanation_box.info("A vector is a list of numbers. Similar meanings are represented by vectors that point in similar directions.")
+        time.sleep(1.2)
+
+        show_stage(4, "The user enters a query",
+                   f'Example query: "{mock_query}"',
+                   58)
+        show_flow("User question", "🧠 Same AI Model", "Query vector", "#f47721")
+        explanation_box.info("The query is converted using the same model so that it can be compared with document vectors.")
+        time.sleep(1.2)
+
+        show_stage(5, "Similarity is calculated",
+                   "The query vector is compared with every document vector using cosine similarity.",
+                   73)
+        visual_box.markdown(
+            """
+            <div style="border:1px solid #d8e7f0;border-radius:12px;padding:18px;
+                        background:#fbfdff;">
+                <div style="font-weight:700;color:#245b7c;margin-bottom:12px;">
+                    Query vector compared with stored vectors
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="width:120px;">Document A</span>
+                        <div style="height:18px;flex:1;background:#d9f2df;border-radius:20px;">
+                            <div style="width:94%;height:18px;background:#35a853;border-radius:20px;"></div>
+                        </div><b>0.94</b>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="width:120px;">Document B</span>
+                        <div style="height:18px;flex:1;background:#d9f2df;border-radius:20px;">
+                            <div style="width:88%;height:18px;background:#61b875;border-radius:20px;"></div>
+                        </div><b>0.88</b>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="width:120px;">Document C</span>
+                        <div style="height:18px;flex:1;background:#f8ead9;border-radius:20px;">
+                            <div style="width:31%;height:18px;background:#e6a04e;border-radius:20px;"></div>
+                        </div><b>0.31</b>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="width:120px;">Document D</span>
+                        <div style="height:18px;flex:1;background:#f8ead9;border-radius:20px;">
+                            <div style="width:22%;height:18px;background:#e6a04e;border-radius:20px;"></div>
+                        </div><b>0.22</b>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        explanation_box.info("Higher scores mean the document is more semantically related to the query.")
+        time.sleep(1.5)
+
+        show_stage(6, "Documents are ranked and filtered",
+                   "The documents are sorted from the highest similarity score to the lowest score.",
+                   88)
+        rows = "".join(
+            f"""
+            <tr>
+                <td style="padding:9px;border-bottom:1px solid #e5e5e5;">{i}</td>
+                <td style="padding:9px;border-bottom:1px solid #e5e5e5;">{title}</td>
+                <td style="padding:9px;border-bottom:1px solid #e5e5e5;font-weight:700;">{score:.2f}</td>
+                <td style="padding:9px;border-bottom:1px solid #e5e5e5;">{label}</td>
+            </tr>
+            """
+            for i, (_, title, score, label) in enumerate(mock_documents, start=1)
+        )
+        visual_box.markdown(
+            f"""
+            <div style="border:1px solid #d8e7f0;border-radius:12px;padding:12px;background:#fff;">
+                <div style="font-weight:700;color:#245b7c;margin-bottom:10px;">Ranked results</div>
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="background:#f5fbff;">
+                        <th style="padding:9px;text-align:left;">Rank</th>
+                        <th style="padding:9px;text-align:left;">Document</th>
+                        <th style="padding:9px;text-align:left;">Score</th>
+                        <th style="padding:9px;text-align:left;">Interpretation</th>
+                    </tr></thead>
+                    <tbody>{rows}</tbody>
+                </table>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        explanation_box.info("Top-K keeps only the requested number of results. The similarity threshold can remove weak matches.")
+        time.sleep(1.2)
+
+        show_stage(7, "Final results are shown to the user",
+                   "The most relevant documents are displayed with their similarity scores.",
+                   100)
+        show_flow("Query", "Ranked documents", "Useful answer", "#35a853")
+        explanation_box.success("Mock animation completed. You can now run the actual search below using your real dataset.")
+
 def run_live_search(query, documents_df, embeddings, top_k, threshold, live, pause=0.35):
     pipeline_placeholder = st.empty()
     log_placeholder = st.empty()
@@ -2610,18 +2786,21 @@ def render_simulation():
     render_html(
         """
         <div class="info-box">
-            The simulation runs in two stages and shows the work as it happens.
-            In Stage A the document collection is preprocessed and converted into
-            dense embeddings batch by batch, and the resulting index is stored.
-            In Stage B the query is encoded, compared with every stored vector
-            using cosine similarity, ranked and filtered into the final result list.
+            First understand the complete semantic-search workflow through the
+            visual mock animation. After that, use the actual dataset simulation
+            to build the index and perform a real search.
         </div>
         """
     )
 
+    render_mock_semantic_animation()
+
+    render_html('<div class="content-heading">Actual Dataset Simulation</div>')
+
     live = st.checkbox(
-        "Show the live process visualisation (pipeline, batch log and intermediate data)",
+        "Show technical live details during the actual search",
         value=True,
+        key="actual_live_details",
     )
 
     documents_df = get_active_documents()
