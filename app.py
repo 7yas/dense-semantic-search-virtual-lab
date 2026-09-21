@@ -43,13 +43,33 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 # it reaches the parser, so it is emitted as real HTML every time.
 
 def render_html(markup):
-    cleaned = " ".join(
-        line.strip()
-        for line in markup.strip().splitlines()
-        if line.strip()
-    )
+    """
+    Render custom HTML/CSS as HTML instead of passing it through Markdown.
 
-    st.markdown(cleaned, unsafe_allow_html=True)
+    Streamlit's Markdown renderer can expose long HTML/CSS fragments as
+    literal code when the fragment contains indentation or style blocks.
+    st.html() renders the fragment as actual HTML and prevents the source
+    markup from appearing in the page.
+    """
+    if not isinstance(markup, str):
+        markup = str(markup)
+
+    # Some CSS fragments were authored with doubled braces. They are useful
+    # inside Python f-strings, but are not valid CSS when rendered directly.
+    markup = markup.replace("{{", "{").replace("}}", "}")
+
+    if hasattr(st, "html"):
+        st.html(markup)
+    else:
+        # Compatibility fallback for older Streamlit versions.
+        # Keep the fragment on one line so Markdown does not interpret it as
+        # an indented code block.
+        cleaned = " ".join(
+            line.strip()
+            for line in markup.strip().splitlines()
+            if line.strip()
+        )
+        st.markdown(cleaned, unsafe_allow_html=True)
 
 
 def to_html_paragraphs(text):
