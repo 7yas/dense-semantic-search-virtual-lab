@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.express as px
 
 from sentence_transformers import SentenceTransformer
@@ -43,31 +44,25 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 # it reaches the parser, so it is emitted as real HTML every time.
 
 def render_html(markup):
-    """
-    Render custom HTML/CSS as HTML instead of passing it through Markdown.
-
-    Streamlit's Markdown renderer can expose long HTML/CSS fragments as
-    literal code when the fragment contains indentation or style blocks.
-    st.html() renders the fragment as actual HTML and prevents the source
-    markup from appearing in the page.
-    """
+    """Render custom HTML safely without exposing the source markup."""
     if not isinstance(markup, str):
         markup = str(markup)
 
-    # Some CSS fragments were authored with doubled braces. They are useful
-    # inside Python f-strings, but are not valid CSS when rendered directly.
     markup = markup.replace("{{", "{").replace("}}", "}")
+
+    # Render the mock scene in an HTML component. Markdown can expose long
+    # CSS/style fragments as literal code instead of displaying the UI.
+    is_mock_scene = "mock-scene" in markup or "mock-lab-intro" in markup
+    if is_mock_scene:
+        height = 820 if "mock-scene" in markup else 125
+        components.html(markup, height=height, scrolling=False)
+        return
 
     if hasattr(st, "html"):
         st.html(markup)
     else:
-        # Compatibility fallback for older Streamlit versions.
-        # Keep the fragment on one line so Markdown does not interpret it as
-        # an indented code block.
         cleaned = " ".join(
-            line.strip()
-            for line in markup.strip().splitlines()
-            if line.strip()
+            line.strip() for line in markup.strip().splitlines() if line.strip()
         )
         st.markdown(cleaned, unsafe_allow_html=True)
 
@@ -2541,7 +2536,7 @@ def render_mock_semantic_animation():
             )
             visual = '<div class="mock-ranking-panel"><div class="mock-panel-title">Documents sorted by similarity score</div>' + rows + '<div class="mock-result-banner">✓ Top-K retrieval selects the highest-scoring documents</div></div>'
 
-        scene.markdown(
+        render_html(
             " ".join(
                 f"""
                 <style>
