@@ -44,25 +44,51 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 # it reaches the parser, so it is emitted as real HTML every time.
 
 def render_html(markup):
-    """Render custom HTML safely without exposing the source markup."""
+    """Render HTML without allowing Streamlit Markdown to expose source code.
+
+    Streamlit Markdown is useful for short snippets, but large HTML documents
+    containing <style> blocks can be displayed as literal text depending on
+    the Streamlit version. The animation is therefore always rendered inside
+    a dedicated HTML component/iframe.
+    """
     if not isinstance(markup, str):
         markup = str(markup)
 
+    # The source contains doubled braces in f-string CSS templates. Convert
+    # them only once, before sending the final HTML to the browser.
     markup = markup.replace("{{", "{").replace("}}", "}")
 
-    # Render the mock scene in an HTML component. Markdown can expose long
-    # CSS/style fragments as literal code instead of displaying the UI.
-    is_mock_scene = "mock-scene" in markup or "mock-lab-intro" in markup
-    if is_mock_scene:
-        height = 820 if "mock-scene" in markup else 125
-        components.html(markup, height=height, scrolling=False)
+    is_animation = (
+        "mock-scene" in markup
+        or "mock-lab-intro" in markup
+        or "SEMANTIC SEARCH WORKFLOW" in markup
+    )
+
+    if is_animation:
+        # Use a complete HTML document. This prevents Streamlit's Markdown
+        # parser from treating the CSS/HTML as a code block.
+        document = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;background:#ffffff;">
+{markup}
+</body>
+</html>"""
+        components.html(document, height=900, scrolling=False)
         return
 
+    # Global CSS must remain in the parent Streamlit page, so do not put
+    # style-only snippets inside an iframe.
     if hasattr(st, "html"):
         st.html(markup)
     else:
         cleaned = " ".join(
-            line.strip() for line in markup.strip().splitlines() if line.strip()
+            line.strip()
+            for line in markup.strip().splitlines()
+            if line.strip()
         )
         st.markdown(cleaned, unsafe_allow_html=True)
 
