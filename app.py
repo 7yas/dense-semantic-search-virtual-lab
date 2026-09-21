@@ -2352,179 +2352,154 @@ def render_indexing_panel(documents_df, live):
 
 
 def render_mock_semantic_animation():
-    """Beginner-friendly visual demonstration using illustrative, non-live data."""
-    render_html(
-        """
-        <div class="content-subheading">Interactive Mock Animation</div>
-        <div class="info-box">
-            This animation uses example documents and illustrative scores.
-            It is designed to explain the complete workflow visually before running
-            the actual semantic search on the selected dataset.
+    """Premium, illustrative semantic-search animation using mock data."""
+    render_html("""
+    <div class="content-subheading">Neural Search Lab · Interactive Visualization</div>
+    <div style="background:linear-gradient(135deg,#101827,#172b4d 55%,#102f3b);
+                border:1px solid #2c5674;border-radius:22px;padding:24px;color:#eaf6ff;
+                box-shadow:0 12px 40px rgba(8,20,40,.25);">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:11px;letter-spacing:2px;color:#72e7ff;font-weight:800;">SEMANTIC ENGINE / MOCK MODE</div>
+          <div style="font-size:25px;font-weight:850;margin-top:6px;">From language to meaning</div>
+          <div style="color:#a9c3d9;font-size:13px;margin-top:5px;">Watch text become vectors, travel through the embedding space, and form a ranked result.</div>
         </div>
-        """
-    )
+        <div style="padding:8px 12px;border:1px solid #3d718b;border-radius:30px;color:#9dffce;font-size:12px;">● LIVE VISUAL DEMO</div>
+      </div>
+    </div>
+    """)
 
-    mock_query = "How do computers learn from data?"
-    mock_documents = [
-        ("Document A", "Introduction to Machine Learning", 0.94, "Very relevant"),
-        ("Document B", "Supervised Learning Algorithms", 0.88, "Relevant"),
-        ("Document C", "Computer Networks", 0.31, "Weak match"),
-        ("Document D", "Database Management", 0.22, "Low match"),
+    query = "How do computers learn from data?"
+    docs = [
+        ("A", "Introduction to Machine Learning", 0.94, "#5df2c1", "Highly related"),
+        ("B", "Supervised Learning Algorithms", 0.88, "#63b8ff", "Related"),
+        ("C", "Computer Networks", 0.31, "#f5c76b", "Weak relation"),
+        ("D", "Database Management", 0.22, "#ff829c", "Low relation"),
     ]
 
-    if st.button("▶ Start Mock Animation", key="start_mock_animation",
-                 use_container_width=True):
-        stage_box = st.empty()
-        visual_box = st.empty()
-        explanation_box = st.empty()
+    if st.button("✦ Launch Neural Search Animation", key="start_mock_animation", use_container_width=True):
+        stage = st.empty()
+        scene = st.empty()
+        explanation = st.empty()
         progress = st.progress(0)
 
-        def show_stage(number, title, description, percent):
-            stage_box.markdown(
-                f"""
-                <div class="app-card">
-                    <div class="app-card-title">Step {number}: {title}</div>
-                    <div class="app-card-text">{description}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
+        def render_scene(step, title, subtitle, mode):
+            # The scene is deliberately self-contained so it can be displayed inside Streamlit.
+            doc_cards = "".join(
+                f"""<div class="ns-doc {('ns-hit' if mode in ('similarity','ranking','final') and score > .8 else '')}"
+                         style="--accent:{color};--delay:{i*.16}s;">
+                    <div class="ns-doc-top"><span class="ns-dot" style="background:{color}"></span>
+                    <b>DOC {label}</b><span class="ns-mini">{'MATCH' if score>.8 else 'CANDIDATE'}</span></div>
+                    <div class="ns-doc-title">{name}</div>
+                    <div class="ns-vector">{''.join('<i></i>' for _ in range(18))}</div>
+                    <div class="ns-score">{score:.2f}<span> cosine score</span></div>
+                </div>"""
+                for i, (label, name, score, color, relation) in enumerate(docs)
             )
-            progress.progress(percent)
-
-        def show_flow(left, middle, right, color="#2696d2"):
-            visual_box.markdown(
-                f"""
-                <div style="display:flex;align-items:center;justify-content:center;
-                            gap:10px;flex-wrap:wrap;margin:14px 0;">
-                    <div style="flex:1;min-width:145px;text-align:center;
-                                padding:18px 10px;border:2px solid {color};
-                                border-radius:12px;background:#f5fbff;
-                                font-weight:700;color:#245b7c;">{left}</div>
-                    <div style="font-size:28px;color:#f47721;font-weight:700;">→</div>
-                    <div style="flex:1;min-width:145px;text-align:center;
-                                padding:18px 10px;border:2px solid {color};
-                                border-radius:12px;background:#f5fbff;
-                                font-weight:700;color:#245b7c;">{middle}</div>
-                    <div style="font-size:28px;color:#f47721;font-weight:700;">→</div>
-                    <div style="flex:1;min-width:145px;text-align:center;
-                                padding:18px 10px;border:2px solid {color};
-                                border-radius:12px;background:#f5fbff;
-                                font-weight:700;color:#245b7c;">{right}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        show_stage(1, "Documents enter the system",
-                   "The system receives a collection of documents. Each document contains text and a topic.",
-                   12)
-        show_flow("📄 Document 1", "📄 Document 2", "📄 Document 3")
-        explanation_box.info("Think of this as placing books on a table before organizing them.")
-        time.sleep(1.2)
-
-        show_stage(2, "The AI model reads the text",
-                   "The SentenceTransformer model processes the meaning of every document.",
-                   28)
-        show_flow("Text", "🧠 AI Model", "Meaning")
-        explanation_box.info("The model does not simply count matching words. It converts meaning into numbers.")
-        time.sleep(1.2)
-
-        show_stage(3, "Text becomes a vector",
-                   "Every document is represented by a dense numerical vector and stored in the index.",
-                   45)
-        show_flow("Document meaning", "🔢 Vector", "🗃️ Vector index")
-        explanation_box.info("A vector is a list of numbers. Similar meanings are represented by vectors that point in similar directions.")
-        time.sleep(1.2)
-
-        show_stage(4, "The user enters a query",
-                   f'Example query: "{mock_query}"',
-                   58)
-        show_flow("User question", "🧠 Same AI Model", "Query vector", "#f47721")
-        explanation_box.info("The query is converted using the same model so that it can be compared with document vectors.")
-        time.sleep(1.2)
-
-        show_stage(5, "Similarity is calculated",
-                   "The query vector is compared with every document vector using cosine similarity.",
-                   73)
-        visual_box.markdown(
+            lines = """
+              <svg class="ns-lines" viewBox="0 0 900 260" preserveAspectRatio="none">
+                <path class="ns-path p1" d="M450 130 C330 30 200 30 105 85"/>
+                <path class="ns-path p2" d="M450 130 C340 80 245 100 105 190"/>
+                <path class="ns-path p3" d="M450 130 C570 30 700 30 795 85"/>
+                <path class="ns-path p4" d="M450 130 C560 180 700 220 795 190"/>
+                <circle class="ns-pulse" cx="450" cy="130" r="9"/>
+              </svg>
             """
-            <div style="border:1px solid #d8e7f0;border-radius:12px;padding:18px;
-                        background:#fbfdff;">
-                <div style="font-weight:700;color:#245b7c;margin-bottom:12px;">
-                    Query vector compared with stored vectors
-                </div>
-                <div style="display:flex;flex-direction:column;gap:10px;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <span style="width:120px;">Document A</span>
-                        <div style="height:18px;flex:1;background:#d9f2df;border-radius:20px;">
-                            <div style="width:94%;height:18px;background:#35a853;border-radius:20px;"></div>
-                        </div><b>0.94</b>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <span style="width:120px;">Document B</span>
-                        <div style="height:18px;flex:1;background:#d9f2df;border-radius:20px;">
-                            <div style="width:88%;height:18px;background:#61b875;border-radius:20px;"></div>
-                        </div><b>0.88</b>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <span style="width:120px;">Document C</span>
-                        <div style="height:18px;flex:1;background:#f8ead9;border-radius:20px;">
-                            <div style="width:31%;height:18px;background:#e6a04e;border-radius:20px;"></div>
-                        </div><b>0.31</b>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <span style="width:120px;">Document D</span>
-                        <div style="height:18px;flex:1;background:#f8ead9;border-radius:20px;">
-                            <div style="width:22%;height:18px;background:#e6a04e;border-radius:20px;"></div>
-                        </div><b>0.22</b>
-                    </div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        explanation_box.info("Higher scores mean the document is more semantically related to the query.")
-        time.sleep(1.5)
-
-        show_stage(6, "Documents are ranked and filtered",
-                   "The documents are sorted from the highest similarity score to the lowest score.",
-                   88)
-        rows = "".join(
-            f"""
-            <tr>
-                <td style="padding:9px;border-bottom:1px solid #e5e5e5;">{i}</td>
-                <td style="padding:9px;border-bottom:1px solid #e5e5e5;">{title}</td>
-                <td style="padding:9px;border-bottom:1px solid #e5e5e5;font-weight:700;">{score:.2f}</td>
-                <td style="padding:9px;border-bottom:1px solid #e5e5e5;">{label}</td>
-            </tr>
+            query_box = f"""
+              <div class="ns-query">
+                <div class="ns-query-label">QUERY EMBEDDING</div>
+                <div class="ns-query-text">“{query}”</div>
+                <div class="ns-vector ns-query-vector">{''.join('<i></i>' for _ in range(28))}</div>
+                <div class="ns-query-meta">768 dimensions · normalized vector</div>
+              </div>
             """
-            for i, (_, title, score, label) in enumerate(mock_documents, start=1)
-        )
-        visual_box.markdown(
-            f"""
-            <div style="border:1px solid #d8e7f0;border-radius:12px;padding:12px;background:#fff;">
-                <div style="font-weight:700;color:#245b7c;margin-bottom:10px;">Ranked results</div>
-                <table style="width:100%;border-collapse:collapse;">
-                    <thead><tr style="background:#f5fbff;">
-                        <th style="padding:9px;text-align:left;">Rank</th>
-                        <th style="padding:9px;text-align:left;">Document</th>
-                        <th style="padding:9px;text-align:left;">Score</th>
-                        <th style="padding:9px;text-align:left;">Interpretation</th>
-                    </tr></thead>
-                    <tbody>{rows}</tbody>
-                </table>
+            ranking = ""
+            if mode in ("ranking", "final"):
+                ranking = """
+                <div class="ns-ranking">
+                  <div class="ns-rank-title">RANKING ENGINE</div>
+                  <div class="ns-rank-row"><b>01</b><span>Introduction to Machine Learning</span><strong>0.94</strong></div>
+                  <div class="ns-rank-row"><b>02</b><span>Supervised Learning Algorithms</span><strong>0.88</strong></div>
+                  <div class="ns-rank-row muted"><b>03</b><span>Computer Networks</span><strong>0.31</strong></div>
+                  <div class="ns-rank-row muted"><b>04</b><span>Database Management</span><strong>0.22</strong></div>
+                </div>
+                """
+            scene.markdown(f"""
+            <style>
+              .ns-wrap{{background:#08111f;border:1px solid #24415b;border-radius:22px;padding:20px;color:#dff5ff;overflow:hidden;position:relative;}}
+              .ns-wrap:before{{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent,#12314b22,transparent);animation:nsSweep 4s linear infinite;pointer-events:none;}}
+              .ns-header{{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;position:relative;z-index:2;}}
+              .ns-kicker{{font-size:10px;letter-spacing:2px;color:#6ee7ff;font-weight:800;}}
+              .ns-title{{font-size:22px;font-weight:850;margin-top:4px;}}
+              .ns-sub{{font-size:12px;color:#88a9bf;margin-top:4px;}}
+              .ns-stage{{border:1px solid #284961;background:#0d1d2e;border-radius:12px;padding:8px 12px;font-size:11px;color:#9dffce;}}
+              .ns-query{{margin:20px auto 14px;max-width:650px;text-align:center;border:1px solid #3e7694;border-radius:16px;padding:15px;background:radial-gradient(circle at center,#163c50,#0c1a2a);box-shadow:0 0 35px #38c9ff18;position:relative;z-index:2;}}
+              .ns-query-label,.ns-rank-title{{font-size:10px;letter-spacing:2px;color:#67e5ff;font-weight:800;}}
+              .ns-query-text{{font-size:16px;font-weight:750;margin:8px 0;color:#fff;}}
+              .ns-query-meta{{font-size:10px;color:#7fabc3;margin-top:8px;}}
+              .ns-vector{{display:flex;justify-content:center;gap:3px;flex-wrap:wrap;margin-top:10px;}}
+              .ns-vector i{{display:block;width:7px;height:22px;border-radius:3px;background:linear-gradient(#71f9da,#3681ff);animation:nsBars .85s ease-in-out infinite alternate;animation-delay:var(--delay,0s);opacity:.85;}}
+              .ns-query-vector i:nth-child(3n){{height:12px;background:#e78cff;}}
+              .ns-query-vector i:nth-child(4n){{height:29px;}}
+              .ns-network{{position:relative;min-height:270px;display:flex;align-items:center;justify-content:space-between;gap:12px;}}
+              .ns-lines{{position:absolute;inset:0;width:100%;height:100%;z-index:0;overflow:visible;}}
+              .ns-path{{fill:none;stroke:#36718c;stroke-width:1.5;stroke-dasharray:7 9;animation:nsFlow 2.2s linear infinite;}}
+              .ns-pulse{{fill:#69f7d1;filter:drop-shadow(0 0 9px #69f7d1);animation:nsPulse 1.3s ease-in-out infinite;}}
+              .ns-docs{{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:12px;position:relative;z-index:2;}}
+              .ns-doc{{border:1px solid #27465b;border-left:3px solid var(--accent);border-radius:13px;padding:12px;background:#0e2031d9;animation:nsFloat 3s ease-in-out infinite;animation-delay:var(--delay);transition:all .3s;}}
+              .ns-doc.ns-hit{{box-shadow:0 0 25px #42e6bd1c;border-color:#397e78;}}
+              .ns-doc-top{{display:flex;align-items:center;gap:6px;font-size:10px;color:#91b3c8;}}
+              .ns-dot{{width:7px;height:7px;border-radius:50%;box-shadow:0 0 8px var(--accent);}}
+              .ns-mini{{margin-left:auto;font-size:9px;color:var(--accent);}}
+              .ns-doc-title{{font-size:12px;font-weight:750;margin-top:9px;min-height:30px;color:#e9f7ff;}}
+              .ns-score{{font-size:21px;font-weight:850;color:var(--accent);margin-top:8px;}}
+              .ns-score span{{font-size:9px;font-weight:500;color:#779bb1;}}
+              .ns-ranking{{margin-top:18px;border:1px solid #31526a;border-radius:14px;padding:14px;background:#0b1928;position:relative;z-index:2;}}
+              .ns-rank-row{{display:grid;grid-template-columns:35px 1fr 50px;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid #20394d;font-size:12px;animation:nsReveal .55s ease both;}}
+              .ns-rank-row:last-child{{border-bottom:0;}} .ns-rank-row b{{color:#69f7d1;}} .ns-rank-row strong{{text-align:right;color:#69f7d1;}} .ns-rank-row.muted{{opacity:.48;}}
+              @keyframes nsBars{{from{{transform:scaleY(.45);opacity:.4}}to{{transform:scaleY(1);opacity:1}}}}
+              @keyframes nsFlow{{to{{stroke-dashoffset:-32}}}}
+              @keyframes nsPulse{{0%,100%{{r:7;opacity:.6}}50%{{r:14;opacity:1}}}}
+              @keyframes nsFloat{{0%,100%{{transform:translateY(0)}}50%{{transform:translateY(-4px)}}}}
+              @keyframes nsSweep{{from{{transform:translateX(-100%)}}to{{transform:translateX(100%)}}}}
+              @keyframes nsReveal{{from{{opacity:0;transform:translateX(-15px)}}to{{opacity:1;transform:translateX(0)}}}}
+              @media(max-width:600px){{.ns-network{{min-height:230px}}.ns-doc-title{{font-size:11px}}.ns-query-text{{font-size:13px}}}}
+            </style>
+            <div class="ns-wrap">
+              <div class="ns-header"><div><div class="ns-kicker">NEURAL PIPELINE / 07 STAGES</div><div class="ns-title">{title}</div><div class="ns-sub">{subtitle}</div></div><div class="ns-stage">STAGE {step}/7</div></div>
+              {query_box if mode in ("query","embedding","similarity","ranking","final") else ""}
+              <div class="ns-network">{lines}<div style="width:100%;position:relative;z-index:2;">{('<div class="ns-docs">'+doc_cards+'</div>') if mode in ("ingest","embedding") else ''}{('<div class="ns-docs">'+doc_cards+'</div>') if mode == "similarity" else ''}</div></div>
+              {ranking}
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        explanation_box.info("Top-K keeps only the requested number of results. The similarity threshold can remove weak matches.")
-        time.sleep(1.2)
+            """, unsafe_allow_html=True)
 
-        show_stage(7, "Final results are shown to the user",
-                   "The most relevant documents are displayed with their similarity scores.",
-                   100)
-        show_flow("Query", "Ranked documents", "Useful answer", "#35a853")
-        explanation_box.success("Mock animation completed. You can now run the actual search below using your real dataset.")
+        stages = [
+            ("Documents enter the neural workspace", "Four documents are loaded as independent semantic candidates.", "ingest", 12),
+            ("The encoder reads meaning", "The model processes words and context instead of matching only exact keywords.", "embedding", 28),
+            ("Text becomes a high-dimensional vector", "Each document is represented by a numerical fingerprint of meaning.", "embedding", 45),
+            ("The user query becomes a vector", "The query is encoded using the same embedding space.", "query", 60),
+            ("Semantic distance is measured", "The query vector is compared with every document vector using cosine similarity.", "similarity", 76),
+            ("The ranking engine sorts the candidates", "Documents are ordered from the strongest semantic match to the weakest.", "ranking", 90),
+            ("Relevant results are revealed", "The highest-scoring documents are returned as the final search result.", "final", 100),
+        ]
+        for i, (title, subtitle, mode, pct) in enumerate(stages, 1):
+            render_scene(i, title, subtitle, mode)
+            progress.progress(pct)
+            if i == 1:
+                explanation.info("📥 **Ingestion:** The system receives documents and prepares them for the embedding model.")
+            elif i == 2:
+                explanation.info("🧠 **Encoding:** The neural model captures semantic meaning from the text.")
+            elif i == 3:
+                explanation.info("🔢 **Vectorization:** Similar meanings should occupy nearby regions in the vector space.")
+            elif i == 4:
+                explanation.info("🎯 **Query encoding:** The question is converted into the same numerical representation as the documents.")
+            elif i == 5:
+                explanation.info("🧬 **Similarity:** Higher cosine similarity indicates that the document and query point in a more similar direction.")
+            elif i == 6:
+                explanation.info("🏆 **Ranking:** The system sorts candidates by their similarity score and filters weak matches.")
+            else:
+                explanation.success("✓ **Animation completed:** Documents A and B are the strongest semantic matches in this illustrative example.")
+            time.sleep(1.25 if i != 7 else 0.8)
 
 def run_live_search(query, documents_df, embeddings, top_k, threshold, live, pause=0.35):
     pipeline_placeholder = st.empty()
