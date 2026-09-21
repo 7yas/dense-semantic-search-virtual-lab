@@ -942,6 +942,15 @@ CONCEPT_ANIMATION_HTML = r"""
   <div class="toolbar">
     <button id="playBtn">&#9654; Play Animation</button>
     <button id="replayBtn">&#8635; Replay</button>
+    <label class="speedLabel">Speed:
+      <select id="speedSelect">
+        <option value="0.5">0.5x (Slow)</option>
+        <option value="1" selected>1x (Normal)</option>
+        <option value="1.5">1.5x</option>
+        <option value="2">2x (Fast)</option>
+        <option value="3">3x (Very Fast)</option>
+      </select>
+    </label>
     <div id="caption">Click Play to see how semantic search works, step by step.</div>
   </div>
 
@@ -952,20 +961,29 @@ CONCEPT_ANIMATION_HTML = r"""
     <span class="chip"><i style="background:#f47721;border-radius:50%"></i> Your query</span>
   </div>
 
-  <svg id="stage" viewBox="0 0 960 440" width="100%" height="420" preserveAspectRatio="xMidYMid meet">
+  <div id="stepFlow" class="stepFlow"></div>
+
+  <svg id="stage" viewBox="0 0 960 460" width="100%" height="430" preserveAspectRatio="xMidYMid meet">
     <text x="95" y="26" class="panelLabel">Documents</text>
     <rect x="15" y="36" width="165" height="380" rx="10" class="panel"/>
     <g id="docStack"></g>
+
+    <polygon points="188,225 214,215 214,235" class="flowArrow" id="arrow1"/>
+    <text x="201" y="255" class="arrowLabel">reads</text>
 
     <text x="425" y="26" class="panelLabel">Encoder Model</text>
     <rect id="encoderBox" x="345" y="185" width="150" height="90" rx="12" class="encoder"/>
     <text x="420" y="224" class="encoderText">Sentence</text>
     <text x="420" y="242" class="encoderText">Transformer</text>
 
+    <polygon points="503,225 529,215 529,235" class="flowArrow" id="arrow2"/>
+    <text x="516" y="255" class="arrowLabel">embeds</text>
+
     <text x="775" y="26" class="panelLabel">Embedding Space</text>
     <rect x="590" y="36" width="355" height="380" rx="10" class="panel"/>
     <g id="dotsLayer"></g>
     <g id="linesLayer"></g>
+    <g id="travelLayer"></g>
     <g id="queryLayer"></g>
     <g id="rankLayer"></g>
   </svg>
@@ -1000,6 +1018,23 @@ CONCEPT_ANIMATION_HTML = r"""
 
 .toolbar button:hover { background: #197db6; }
 
+.speedLabel {
+    font-size: 13px;
+    color: #555555;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.speedLabel select {
+    font-size: 13px;
+    padding: 5px 8px;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    background: white;
+    color: #333333;
+}
+
 #caption {
     color: #444444;
     font-size: 15px;
@@ -1012,6 +1047,63 @@ CONCEPT_ANIMATION_HTML = r"""
     gap: 18px;
     flex-wrap: wrap;
     margin-bottom: 6px;
+}
+
+.stepFlow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0px 14px 0px;
+}
+
+.stepPill {
+    background: #f7f7f7;
+    border: 1px solid #e2e2e2;
+    color: #9a9a9a;
+    border-radius: 14px;
+    padding: 6px 13px;
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background 300ms ease, border-color 300ms ease, color 300ms ease;
+}
+
+.stepPill.stepDone {
+    background: #eaf7ee;
+    border-color: #9bd5ad;
+    color: #1d6b38;
+}
+
+.stepPill.stepActive {
+    background: #f47721;
+    border-color: #f47721;
+    color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(244, 119, 33, 0.18);
+}
+
+.stepArrow {
+    color: #c7c7c7;
+    font-size: 14px;
+}
+
+.flowArrow {
+    fill: #d7d7d7;
+    transition: fill 300ms ease;
+}
+
+.flowArrow.flowing {
+    fill: #f47721;
+}
+
+.arrowLabel {
+    font-size: 10px;
+    fill: #999999;
+    text-anchor: middle;
+}
+
+.travelDot {
+    filter: drop-shadow(0 0 2px rgba(0,0,0,0.25));
 }
 
 .chip {
@@ -1213,11 +1305,24 @@ CONCEPT_ANIMATION_HTML = r"""
     const docStack = root.querySelector("#docStack");
     const dotsLayer = root.querySelector("#dotsLayer");
     const linesLayer = root.querySelector("#linesLayer");
+    const travelLayer = root.querySelector("#travelLayer");
     const queryLayer = root.querySelector("#queryLayer");
     const rankLayer = root.querySelector("#rankLayer");
     const encoderBox = root.querySelector("#encoderBox");
     const caption = root.querySelector("#caption");
     const resultList = root.querySelector("#resultList");
+    const stepFlowEl = root.querySelector("#stepFlow");
+    const arrow1 = root.querySelector("#arrow1");
+    const arrow2 = root.querySelector("#arrow2");
+
+    const STEPS = [
+        "1. Read Documents",
+        "2. Encode",
+        "3. Build Index",
+        "4. Read Query",
+        "5. Compare & Rank",
+        "6. Show Results",
+    ];
 
     const COLORS = { ai: "#4f8ff0", sys: "#37b06a", data: "#b06fe0" };
 
@@ -1244,16 +1349,77 @@ CONCEPT_ANIMATION_HTML = r"""
     const TOP_K = [0, 3, 4]; // indices into DOCS considered "most similar"
     const MOCK_SCORES = { 0: 0.91, 3: 0.85, 4: 0.79 };
 
-    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    function speedFactor() {
+        const sel = document.getElementById("speedSelect");
+        return sel ? parseFloat(sel.value) : 1;
+    }
+
+    function scaledMs(base) { return Math.max(60, base / speedFactor()); }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms / speedFactor())); }
 
     function setCaption(text) { caption.textContent = text; }
 
     function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
 
+    const DOC_START_Y = 55;
+    const DOC_GAP = 30;
+
+    function buildStepFlow() {
+        clear(stepFlowEl);
+        STEPS.forEach((label, i) => {
+            if (i > 0) {
+                const arrow = document.createElement("span");
+                arrow.className = "stepArrow";
+                arrow.innerHTML = "&rarr;";
+                stepFlowEl.appendChild(arrow);
+            }
+            const pill = document.createElement("span");
+            pill.className = "stepPill";
+            pill.id = "step-" + i;
+            pill.textContent = label;
+            stepFlowEl.appendChild(pill);
+        });
+    }
+
+    function setStep(activeIndex) {
+        STEPS.forEach((label, i) => {
+            const pill = document.getElementById("step-" + i);
+            pill.classList.remove("stepDone", "stepActive");
+            if (i < activeIndex) pill.classList.add("stepDone");
+            else if (i === activeIndex) pill.classList.add("stepActive");
+        });
+    }
+
+    // Interpolates numeric SVG attributes on el from fromVals to toVals over
+    // duration ms, using requestAnimationFrame so it works the same across
+    // browsers regardless of speed setting. Resolves when the motion ends.
+    function tween(el, fromVals, toVals, duration) {
+        return new Promise(resolve => {
+            const t0 = performance.now();
+
+            function frame(now) {
+                const t = Math.min(1, (now - t0) / duration);
+                const eased = 1 - Math.pow(1 - t, 3);
+
+                for (const key in toVals) {
+                    const v = fromVals[key] + (toVals[key] - fromVals[key]) * eased;
+                    el.setAttribute(key, v);
+                }
+
+                if (t < 1) {
+                    requestAnimationFrame(frame);
+                } else {
+                    resolve();
+                }
+            }
+
+            requestAnimationFrame(frame);
+        });
+    }
+
     function buildDocStack() {
         clear(docStack);
-        const startY = 55;
-        const gap = 30;
 
         DOCS.forEach((doc, i) => {
             const g = document.createElementNS(svgNS, "g");
@@ -1262,7 +1428,7 @@ CONCEPT_ANIMATION_HTML = r"""
 
             const rect = document.createElementNS(svgNS, "rect");
             rect.setAttribute("x", 30);
-            rect.setAttribute("y", startY + i * gap);
+            rect.setAttribute("y", DOC_START_Y + i * DOC_GAP);
             rect.setAttribute("width", 130);
             rect.setAttribute("height", 20);
             rect.setAttribute("rx", 4);
@@ -1271,7 +1437,7 @@ CONCEPT_ANIMATION_HTML = r"""
 
             const label = document.createElementNS(svgNS, "text");
             label.setAttribute("x", 36);
-            label.setAttribute("y", startY + i * gap + 14);
+            label.setAttribute("y", DOC_START_Y + i * DOC_GAP + 14);
             label.setAttribute("class", "docLabel");
             label.textContent = doc.title.length > 22 ? doc.title.slice(0, 20) + "..." : doc.title;
             g.appendChild(label);
@@ -1287,20 +1453,76 @@ CONCEPT_ANIMATION_HTML = r"""
         c.setAttribute("r", 7);
         c.setAttribute("fill", color);
         c.setAttribute("class", "dot" + (extraClass ? " " + extraClass : ""));
+        c.style.transition =
+            "transform " + scaledMs(480) + "ms cubic-bezier(.34,1.56,.64,1), " +
+            "opacity " + scaledMs(300) + "ms ease";
         return c;
+    }
+
+    function makeTravelDot(x, y, color) {
+        const c = document.createElementNS(svgNS, "circle");
+        c.setAttribute("cx", x);
+        c.setAttribute("cy", y);
+        c.setAttribute("r", 6);
+        c.setAttribute("fill", color);
+        c.setAttribute("class", "travelDot");
+        return c;
+    }
+
+    // Moves a small dot from the document's row, through the encoder, out to
+    // its final landing point -- a literal, visible flow between the three
+    // panels instead of an instant appear/disappear.
+    async function flowDocumentToEmbedding(doc, index) {
+        const rowY = DOC_START_Y + index * DOC_GAP + 10;
+        const color = COLORS[doc.cluster];
+
+        arrow1.classList.add("flowing");
+
+        const travelDot = makeTravelDot(170, rowY, color);
+        travelLayer.appendChild(travelDot);
+
+        await tween(
+            travelDot,
+            { cx: 170, cy: rowY },
+            { cx: 420, cy: 230 },
+            scaledMs(360)
+        );
+
+        arrow1.classList.remove("flowing");
+        await pulseEncoder();
+        arrow2.classList.add("flowing");
+
+        await tween(
+            travelDot,
+            { cx: 420, cy: 230 },
+            { cx: doc.tx, cy: doc.ty },
+            scaledMs(360)
+        );
+
+        arrow2.classList.remove("flowing");
+        travelDot.remove();
+
+        const dot = makeDot(doc.tx, doc.ty, color);
+        dotsLayer.appendChild(dot);
+        requestAnimationFrame(() => dot.classList.add("shown"));
     }
 
     function reset() {
         buildDocStack();
+        buildStepFlow();
         clear(dotsLayer);
         clear(linesLayer);
+        clear(travelLayer);
         clear(queryLayer);
         clear(rankLayer);
         clear(resultList);
+        arrow1.classList.remove("flowing");
+        arrow2.classList.remove("flowing");
         setCaption("Click Play to see how semantic search works, step by step.");
     }
 
     async function pulseEncoder() {
+        encoderBox.style.animationDuration = scaledMs(480) + "ms";
         encoderBox.classList.add("pulse");
         await sleep(480);
         encoderBox.classList.remove("pulse");
@@ -1311,7 +1533,8 @@ CONCEPT_ANIMATION_HTML = r"""
         await sleep(300);
 
         // ---- Phase 1: index every document ----
-        setCaption("Step 1 of 4 — Every document is read by the model and turned into a point in space.");
+        setStep(0);
+        setCaption("Step 1 of 6 — Every document is read by the model, one at a time.");
         await sleep(400);
 
         for (let i = 0; i < DOCS.length; i++) {
@@ -1319,27 +1542,30 @@ CONCEPT_ANIMATION_HTML = r"""
             const card = document.getElementById("doc-" + i);
             card.classList.add("active");
 
-            await sleep(140);
-            await pulseEncoder();
+            if (i === Math.floor(DOCS.length / 2)) {
+                setStep(1);
+                setCaption("Step 2 of 6 — The encoder converts each document into a vector.");
+            }
 
-            const dot = makeDot(doc.tx, doc.ty, COLORS[doc.cluster]);
-            dotsLayer.appendChild(dot);
-            requestAnimationFrame(() => dot.classList.add("shown"));
+            await flowDocumentToEmbedding(doc, i);
 
             card.classList.remove("active");
             card.classList.add("done");
 
-            await sleep(160);
+            await sleep(120);
         }
 
-        setCaption("All documents are now points in the embedding space — similar topics land close together.");
+        setStep(2);
+        setCaption("Step 3 of 6 — All documents are now points in the embedding index. Similar topics land close together.");
         await sleep(1300);
 
         // ---- Phase 2: embed the query ----
-        setCaption("Step 2 of 4 — A new query from the user is typed in.");
+        setStep(3);
+        setCaption("Step 4 of 6 — A new query from the user is typed in.");
 
         const chip = document.createElementNS(svgNS, "g");
         chip.setAttribute("class", "queryChip");
+        chip.style.transition = "opacity " + scaledMs(350) + "ms ease";
         const chipRect = document.createElementNS(svgNS, "rect");
         chipRect.setAttribute("x", 30);
         chipRect.setAttribute("y", 400);
@@ -1360,11 +1586,32 @@ CONCEPT_ANIMATION_HTML = r"""
 
         await sleep(700);
         setCaption("The query is passed through the same encoder model as the documents.");
-        await pulseEncoder();
-        await sleep(150);
 
+        arrow1.classList.add("flowing");
+        const queryTravelDot = makeTravelDot(170, 412, "#f47721");
+        travelLayer.appendChild(queryTravelDot);
+
+        await tween(
+            queryTravelDot,
+            { cx: 170, cy: 412 },
+            { cx: 420, cy: 230 },
+            scaledMs(400)
+        );
+
+        arrow1.classList.remove("flowing");
         chip.classList.remove("shown");
-        await sleep(350);
+        await pulseEncoder();
+        arrow2.classList.add("flowing");
+
+        await tween(
+            queryTravelDot,
+            { cx: 420, cy: 230 },
+            { cx: QUERY_TARGET.tx, cy: QUERY_TARGET.ty },
+            scaledMs(400)
+        );
+
+        arrow2.classList.remove("flowing");
+        queryTravelDot.remove();
 
         const queryDot = document.createElementNS(svgNS, "circle");
         queryDot.setAttribute("cx", QUERY_TARGET.tx);
@@ -1372,13 +1619,17 @@ CONCEPT_ANIMATION_HTML = r"""
         queryDot.setAttribute("r", 9);
         queryDot.setAttribute("fill", "#f47721");
         queryDot.setAttribute("class", "queryDot");
+        queryDot.style.transition =
+            "transform " + scaledMs(500) + "ms cubic-bezier(.34,1.56,.64,1), " +
+            "opacity " + scaledMs(300) + "ms ease";
         queryLayer.appendChild(queryDot);
         requestAnimationFrame(() => queryDot.classList.add("shown"));
 
-        await sleep(700);
+        await sleep(500);
 
         // ---- Phase 3: compare with every document ----
-        setCaption("Step 3 of 4 — The query's position is compared with every document using cosine similarity.");
+        setStep(4);
+        setCaption("Step 5 of 6 — The query's position is compared with every document using cosine similarity.");
 
         DOCS.forEach((doc, i) => {
             const line = document.createElementNS(svgNS, "line");
@@ -1388,6 +1639,10 @@ CONCEPT_ANIMATION_HTML = r"""
             line.setAttribute("y2", doc.ty);
             line.setAttribute("class", "simLine");
             line.setAttribute("id", "line-" + i);
+            line.style.transition =
+                "opacity " + scaledMs(500) + "ms ease, " +
+                "stroke " + scaledMs(400) + "ms ease, " +
+                "stroke-width " + scaledMs(400) + "ms ease";
             linesLayer.appendChild(line);
             requestAnimationFrame(() => line.classList.add("shown"));
         });
@@ -1412,6 +1667,9 @@ CONCEPT_ANIMATION_HTML = r"""
             const doc = DOCS[docIndex];
             const badge = document.createElementNS(svgNS, "g");
             badge.setAttribute("class", "rankBadge");
+            badge.style.transition =
+                "transform " + scaledMs(420) + "ms cubic-bezier(.34,1.56,.64,1), " +
+                "opacity " + scaledMs(300) + "ms ease";
             const circle = document.createElementNS(svgNS, "circle");
             circle.setAttribute("cx", doc.tx + 14);
             circle.setAttribute("cy", doc.ty - 14);
@@ -1428,6 +1686,7 @@ CONCEPT_ANIMATION_HTML = r"""
 
         await sleep(700);
         setCaption("Ranked results are returned to the user, best match first.");
+        setStep(5);
 
         TOP_K.forEach((docIndex, rank) => {
             const doc = DOCS[docIndex];
@@ -1435,6 +1694,8 @@ CONCEPT_ANIMATION_HTML = r"""
 
             const row = document.createElement("div");
             row.className = "resultRow";
+            row.style.transition =
+                "opacity " + scaledMs(400) + "ms ease, transform " + scaledMs(400) + "ms ease";
 
             const rankEl = document.createElement("div");
             rankEl.className = "resultRank";
@@ -1448,6 +1709,7 @@ CONCEPT_ANIMATION_HTML = r"""
             trackEl.className = "resultBarTrack";
             const fillEl = document.createElement("div");
             fillEl.className = "resultBarFill";
+            fillEl.style.transition = "width " + scaledMs(700) + "ms ease";
             trackEl.appendChild(fillEl);
 
             const scoreEl = document.createElement("div");
@@ -1485,7 +1747,7 @@ def render_concept_animation():
         "\"Try It on the Real Dataset\"."
     )
 
-    components.html(CONCEPT_ANIMATION_HTML, height=640, scrolling=False)
+    components.html(CONCEPT_ANIMATION_HTML, height=690, scrolling=False)
 
 # ============================================================
 # EXTRA STYLES FOR THE LIVE PROCESS VIEW
@@ -1513,6 +1775,21 @@ render_html(
         border-color: #e2e2e2;
         color: #9a9a9a;
     }
+
+    .live-log {
+        background: #0f1b24;
+        color: #d7f0ff;
+        font-family: "Consolas", "Monaco", monospace;
+        font-size: 13px;
+        line-height: 1.55;
+        padding: 14px 16px;
+        border-radius: 5px;
+        min-height: 120px;
+        white-space: pre-wrap;
+    }
+
+    .live-log .log-ok { color: #7ee2a8; }
+    .live-log .log-run { color: #ffc166; }
 
     .quiz-progress {
         color: #666666;
@@ -2197,6 +2474,11 @@ def render_pipeline(stages, active=None):
     render_html(pipeline_markup(stages, active))
 
 
+def log_markup(lines):
+    body = "<br>".join(lines)
+    return f'<div class="live-log">{body}</div>'
+
+
 INDEX_STAGES = [
     "Documents",
     "Preprocessing",
@@ -2673,11 +2955,12 @@ def render_dataset_panel(documents_df, source_label):
 # SIMULATION: STAGE A WITH LIVE VISUALISATION
 # ============================================================
 
-def run_live_indexing(documents_df, show_progress, batch_size=16):
+def run_live_indexing(documents_df, show_progress, pace=0.25, batch_size=16):
     """Encode the collection batch by batch. A clean animated status replaces
     the previous raw text log -- just the pipeline lighting up, a progress bar
     and a one-line caption, which is what actually reads as "happening" to a
-    viewer rather than as backend output."""
+    viewer rather than as backend output. `pace` sets the pause (in seconds)
+    between narrated steps, so the caller can speed this up or slow it down."""
     pipeline_placeholder = st.empty()
     caption_placeholder = st.empty()
     progress_placeholder = st.empty()
@@ -2693,13 +2976,13 @@ def run_live_indexing(documents_df, show_progress, batch_size=16):
     stage(0)
     if show_progress:
         caption_placeholder.caption(f"Reading {len(documents_df)} documents ...")
-        time.sleep(0.25)
+        time.sleep(pace)
 
     stage(1)
     texts = documents_df["content"].astype(str).tolist()
     if show_progress:
         caption_placeholder.caption("Preprocessing text (tokenizing, cleaning) ...")
-        time.sleep(0.25)
+        time.sleep(pace)
 
     stage(2)
     if show_progress:
@@ -2841,7 +3124,7 @@ def render_embedding_map_animated(embeddings, documents_df):
     )
 
 
-def render_indexing_panel(documents_df, show_progress):
+def render_indexing_panel(documents_df, show_progress, pace=0.25):
     render_html('<div class="stage-label">STAGE A</div>')
     render_html('<div class="content-subheading">2. Build the Embedding Index</div>')
 
@@ -2857,7 +3140,7 @@ def render_indexing_panel(documents_df, show_progress):
         render_pipeline(INDEX_STAGES, 0)
 
     if st.button("Build Embedding Index", use_container_width=True):
-        run_live_indexing(documents_df, show_progress)
+        run_live_indexing(documents_df, show_progress, pace=pace)
         st.session_state.last_results = []
         st.success("Embedding index created successfully.")
 
@@ -2898,9 +3181,9 @@ def render_indexing_panel(documents_df, show_progress):
 # SIMULATION: STAGE B WITH LIVE VISUALISATION
 # ============================================================
 
-def run_live_search(query, documents_df, embeddings, top_k, threshold, show_progress):
+def run_live_search(query, documents_df, embeddings, top_k, threshold, show_progress, pace=0.3):
     """Stage B, with the pipeline strip lighting up stage by stage instead of
-    a scrolling text log."""
+    a scrolling text log. `pace` sets the pause between narrated steps."""
     pipeline_placeholder = st.empty()
     caption_placeholder = st.empty()
 
@@ -2911,7 +3194,7 @@ def run_live_search(query, documents_df, embeddings, top_k, threshold, show_prog
             )
             if caption:
                 caption_placeholder.caption(caption)
-            time.sleep(0.3)
+            time.sleep(pace)
 
     start = time.perf_counter()
 
@@ -3050,7 +3333,7 @@ def render_similarity_radar(results):
     )
 
 
-def render_search_panel(documents_df, show_progress):
+def render_search_panel(documents_df, show_progress, pace=0.3):
     render_html('<div class="stage-label">STAGE B</div>')
     render_html('<div class="content-subheading">3. Run a Query</div>')
 
@@ -3084,6 +3367,7 @@ def render_search_panel(documents_df, show_progress):
                 top_k,
                 threshold,
                 show_progress,
+                pace=pace,
             )
 
             st.session_state.last_query = query
@@ -3196,10 +3480,24 @@ def render_simulation():
         """
     )
 
-    show_progress = st.checkbox(
-        "Show the pipeline animation while indexing and searching",
-        value=True,
-    )
+    col_toggle, col_speed = st.columns([2, 1])
+
+    with col_toggle:
+        show_progress = st.checkbox(
+            "Show the pipeline animation while indexing and searching",
+            value=True,
+        )
+
+    with col_speed:
+        speed_label = st.select_slider(
+            "Animation speed",
+            options=["0.5x (Slow)", "1x (Normal)", "1.5x", "2x (Fast)", "3x (Very Fast)"],
+            value="1x (Normal)",
+            disabled=not show_progress,
+        )
+
+    speed_multiplier = float(speed_label.split("x")[0])
+    pace = 0.3 / speed_multiplier
 
     documents_df = get_active_documents()
     _, source_label = load_base_documents()
@@ -3208,8 +3506,8 @@ def render_simulation():
         source_label = f"{source_label} + uploaded file"
 
     render_dataset_panel(documents_df, source_label)
-    render_indexing_panel(documents_df, show_progress)
-    render_search_panel(documents_df, show_progress)
+    render_indexing_panel(documents_df, show_progress, pace=pace)
+    render_search_panel(documents_df, show_progress, pace=pace)
     render_results_panel()
 
 
