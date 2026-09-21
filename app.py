@@ -593,6 +593,415 @@ SOURCE_TYPES = [
 ]
 
 # ============================================================
+# QUESTION BANKS
+# ============================================================
+#
+# q(question, correct_option, *three_distractors)
+# The correct option is written first for readability; render_quiz()
+# rotates the option order per question so the answer is not always
+# in the same position.
+
+def q(question, correct, *distractors):
+    return {
+        "question": question,
+        "options": [correct, *distractors],
+        "answer": correct,
+    }
+
+
+PRETEST_QUESTIONS = [
+    q("What is the main purpose of a sentence embedding?",
+      "To convert text into a numerical vector",
+      "To delete all words from a sentence",
+      "To convert text into an image",
+      "To sort documents alphabetically"),
+    q("Which similarity measure is used in this experiment?",
+      "Cosine similarity", "Euclidean distance only", "Manhattan distance only", "Jaccard index only"),
+    q("What does Top-K represent?",
+      "The number of documents returned", "The number of input characters",
+      "The number of model layers", "The embedding dimension"),
+    q("Which model family is used to generate the embeddings here?",
+      "SentenceTransformer", "Linear Regression", "Decision Tree", "K-Means clustering"),
+    q("A cosine similarity score close to 1 generally indicates:",
+      "High semantic similarity", "No relationship", "An empty document", "A failed search"),
+    q("Semantic search retrieves documents based on:",
+      "The meaning of the text", "Only exact keyword matches",
+      "Alphabetical order of titles", "The file size of the document"),
+    q("The main limitation of keyword search is that it:",
+      "Fails when different words express the same meaning",
+      "Cannot read text files", "Requires a GPU", "Works only on images"),
+    q("What is the embedding dimension of the all-MiniLM-L6-v2 model?",
+      "384", "12", "1024", "50000"),
+    q("A dense vector is best described as:",
+      "A fixed-length list of numbers where most values are non-zero",
+      "A list containing mostly zeros", "A plain text string", "A table of keywords"),
+    q("Why is an embedding index built before searching?",
+      "So document embeddings are computed once and reused for every query",
+      "To delete duplicate documents", "To translate the documents", "To compress the images"),
+    q("For L2-normalised vectors, the cosine similarity is equal to:",
+      "Their dot product", "Their sum", "Their difference", "Their product of lengths"),
+    q("NLP stands for:",
+      "Natural Language Processing", "Network Layer Protocol",
+      "Numerical Linear Programming", "Neural Logic Processing"),
+    q("Tokenization is the process of:",
+      "Splitting text into smaller units such as words or subwords",
+      "Encrypting the text", "Deleting punctuation only", "Sorting words by length"),
+    q("Stopwords are:",
+      "Very common words that often carry little meaning",
+      "Words that stop a program", "Misspelled words", "Words unique to one document"),
+    q("In information retrieval, a corpus means:",
+      "The collection of documents being searched",
+      "A single query", "The ranking function", "The similarity threshold"),
+    q("The query embedding must be generated using:",
+      "The same model used for the documents", "Any random model",
+      "A keyword counter", "A decision tree"),
+    q("Ranking in a search system means:",
+      "Ordering documents by their relevance score",
+      "Deleting irrelevant documents", "Renaming the documents", "Splitting long documents"),
+    q("A similarity threshold is used to:",
+      "Reject documents whose score is too low",
+      "Increase the embedding size", "Change the model weights", "Speed up file uploads"),
+    q("Which Python library provides the SentenceTransformer class?",
+      "sentence-transformers", "matplotlib", "openpyxl", "requests"),
+    q("The cosine similarity formula divides the dot product by:",
+      "The product of the vector magnitudes", "The sum of the vectors",
+      "The number of documents", "The embedding dimension"),
+    q("A transformer is:",
+      "A neural network architecture based on attention",
+      "A type of database index", "A file compression format", "A clustering algorithm"),
+    q("The advantage of using a pretrained model is that:",
+      "It already captures language patterns learned from large corpora",
+      "It never needs any input", "It removes the need for a computer", "It stores the documents"),
+    q("Normalising embeddings to unit length mainly helps to:",
+      "Make cosine similarity depend only on direction",
+      "Reduce the number of documents", "Increase the vocabulary", "Remove stopwords"),
+    q("The dot product of two identical unit vectors equals:",
+      "1", "0", "-1", "The vector dimension"),
+    q("Which of these is a metadata field in our document collection?",
+      "Category", "Learning rate", "Batch normalisation", "Dropout"),
+    q("TF-IDF is a technique used in:",
+      "Lexical keyword weighting", "Image compression",
+      "Memory paging", "Process scheduling"),
+    q("Compared with a sparse TF-IDF vector, a dense embedding is:",
+      "Lower dimensional with mostly non-zero values",
+      "Always larger in size", "Made only of zeros", "Always binary"),
+    q("Embeddings can capture meaning because similar texts:",
+      "Are placed close together in the vector space",
+      "Contain the same file extension", "Have equal word counts", "Are alphabetically adjacent"),
+    q("An inverted index maps:",
+      "Terms to the documents that contain them",
+      "Documents to their file size", "Queries to users", "Vectors to images"),
+    q("Precision measures:",
+      "The fraction of retrieved documents that are relevant",
+      "The fraction of relevant documents retrieved", "The time taken per query", "The vector length"),
+    q("Recall measures:",
+      "The fraction of relevant documents that were retrieved",
+      "The fraction of retrieved documents that are relevant", "The index build time", "The batch size"),
+    q("A cosine similarity near 0 between a query and a document means:",
+      "They are semantically unrelated", "They are identical",
+      "They are opposites in meaning", "The model has crashed"),
+    q("Cosine similarity values lie in the range:",
+      "-1 to 1", "0 to 100", "1 to 384", "-384 to 384"),
+    q("Which of the following is NOT a stage of the search pipeline?",
+      "Disk defragmentation", "Query embedding", "Cosine similarity", "Ranking"),
+    q("If the similarity threshold is set very high, the system will:",
+      "Return very few or no documents", "Return every document",
+      "Crash immediately", "Increase the embedding dimension"),
+    q("Increasing Top-K generally:",
+      "Returns more documents, including less relevant ones",
+      "Improves the model accuracy", "Reduces the embedding dimension", "Deletes old trials"),
+    q("Document embeddings are stored in the index so that:",
+      "They are not recomputed for every new query",
+      "They can be printed on paper", "The model can be deleted", "The query becomes shorter"),
+    q("Batch size during encoding controls:",
+      "How many documents are encoded together in one pass",
+      "The number of categories", "The similarity threshold", "The number of search results"),
+    q("Which column is essential in an uploaded CSV document dataset?",
+      "content", "colour", "password", "resolution"),
+    q("Which file formats can be uploaded in this simulation?",
+      "CSV, JSON and TXT", "MP3 and WAV", "EXE and DLL", "PNG and JPG"),
+    q("Encoding documents on a GPU instead of a CPU usually:",
+      "Reduces the index build time", "Increases the embedding dimension",
+      "Changes the similarity formula", "Deletes the index"),
+    q("Query latency in this experiment is reported in:",
+      "Milliseconds", "Kilobytes", "Degrees", "Pixels"),
+    q("Which chart type is used to compare similarity scores of results?",
+      "Horizontal bar chart", "Pie chart", "Candlestick chart", "Gantt chart"),
+    q("Compared with boolean search, semantic search:",
+      "Ranks results by degree of relevance",
+      "Returns only exact matches", "Cannot rank documents", "Ignores the query completely"),
+    q("A vector database is designed to:",
+      "Store embeddings and perform similarity search",
+      "Store only images", "Replace the operating system", "Compile source code"),
+    q("Using a different model for the query and for the documents would:",
+      "Place them in incompatible vector spaces",
+      "Improve the accuracy", "Halve the search time", "Have no effect at all"),
+    q("L2 normalisation changes a vector so that:",
+      "Its length becomes 1", "All its values become 0",
+      "Its dimension doubles", "It becomes a string"),
+    q("Cosine distance is usually defined as:",
+      "1 minus the cosine similarity", "The sum of the two vectors",
+      "The square of the similarity", "The vector dimension"),
+    q("Does semantic search require the query words to appear in the document?",
+      "No, related meaning is enough", "Yes, always",
+      "Only for CSV documents", "Only when Top-K is 1"),
+    q("The final output of this simulation is:",
+      "A ranked list of documents with similarity scores",
+      "A trained neural network", "A compressed archive", "An encrypted database"),
+]
+
+
+POSTTEST_QUESTIONS = [
+    q("Which stage converts the document collection into the embedding index?",
+      "Stage A, document indexing", "Stage B, query search",
+      "The feedback form", "The PDF report generator"),
+    q("Why is indexing separated from searching?",
+      "Indexing is expensive and its result can be reused by every query",
+      "Because queries cannot be embedded", "To reduce the number of documents",
+      "Because the model changes for each query"),
+    q("If 150 documents are indexed with a 384-dimensional model, the index matrix shape is:",
+      "150 x 384", "384 x 384", "150 x 150", "1 x 384"),
+    q("Adding new documents to the collection requires you to:",
+      "Rebuild the embedding index", "Restart the operating system",
+      "Change the similarity metric", "Retrain the transformer"),
+    q("Self-attention in a transformer allows each token to:",
+      "Attend to every other token in the sequence",
+      "Ignore all other tokens", "Be processed strictly in order",
+      "Be replaced by a stopword"),
+    q("Sentence-BERT improves on plain BERT for similarity because it:",
+      "Produces sentence vectors that can be compared directly with cosine similarity",
+      "Uses no neural network", "Removes attention entirely", "Only works on single words"),
+    q("Mean pooling over token embeddings is used to:",
+      "Produce one fixed-length vector for a whole sentence",
+      "Increase the sequence length", "Remove the attention weights", "Tokenize the input"),
+    q("A siamese network architecture trains two encoders that:",
+      "Share the same weights", "Use different vocabularies",
+      "Never see the same data", "Produce vectors of different sizes"),
+    q("Comparing a query against N documents by brute force costs:",
+      "O(N) similarity computations", "O(1) computations",
+      "O(N log N) disk writes", "O(N squared) computations"),
+    q("Approximate nearest neighbour search is used when:",
+      "The collection is too large for exact brute-force scanning",
+      "The query is empty", "The embedding dimension is 1", "Only one document exists"),
+    q("HNSW and IVF are examples of:",
+      "Approximate nearest neighbour index structures",
+      "Loss functions", "Tokenizers", "Activation functions"),
+    q("Hybrid search combines:",
+      "Lexical scores such as BM25 with dense embedding scores",
+      "Two identical dense models", "Images and audio", "Two different databases only"),
+    q("A cross-encoder re-ranker is typically applied:",
+      "To a small shortlist returned by the first-stage retriever",
+      "To the entire collection for every query", "Before tokenization", "Only during indexing"),
+    q("Retrieval augmented generation uses semantic search to:",
+      "Supply relevant context to a language model before it answers",
+      "Train the language model from scratch", "Compress the vector index",
+      "Replace the tokenizer"),
+    q("Mean Reciprocal Rank rewards a system for:",
+      "Placing the first relevant document as high as possible",
+      "Returning as many documents as possible", "Having a low embedding dimension",
+      "Using the least memory"),
+    q("nDCG differs from precision because it:",
+      "Accounts for the position and graded relevance of results",
+      "Ignores relevance entirely", "Measures only index build time",
+      "Counts the number of categories"),
+    q("Precision@5 of 0.6 means that out of the top five results:",
+      "Three are relevant", "Six are relevant", "All are relevant", "None are relevant"),
+    q("Raising the similarity threshold typically:",
+      "Increases precision and decreases recall",
+      "Increases both precision and recall", "Decreases precision and increases recall",
+      "Has no effect on either"),
+    q("If a relevant document scores just below the threshold, it will be:",
+      "Excluded from the results", "Promoted to rank one",
+      "Re-embedded automatically", "Added to the index twice"),
+    q("A query that returns many documents with nearly identical scores suggests:",
+      "The query is generic and weakly discriminative",
+      "The index is corrupted", "The model has 0 dimensions", "Top-K was set to 1"),
+    q("Vocabulary mismatch is the problem where:",
+      "The query and the relevant document use different words for the same idea",
+      "The document has too many words", "Two documents have the same title",
+      "The model file is missing"),
+    q("Dense retrieval addresses vocabulary mismatch because it compares:",
+      "Meaning in a shared vector space rather than surface terms",
+      "Character counts", "File timestamps", "Document identifiers"),
+    q("A weakness of dense retrieval compared with BM25 is:",
+      "It can miss exact rare terms such as product codes",
+      "It cannot rank documents", "It needs no model", "It always runs slower than disk search"),
+    q("Out-of-domain queries perform worse in dense retrieval because:",
+      "The encoder was trained on different kinds of text",
+      "Cosine similarity stops working", "The threshold becomes negative",
+      "The index deletes itself"),
+    q("Chunking long documents before embedding is done because:",
+      "A single vector cannot represent a very long text well",
+      "Models cannot read text files", "Cosine similarity needs equal lengths",
+      "Categories must be unique"),
+    q("An overlapping window when chunking helps to:",
+      "Avoid splitting a relevant passage across chunk boundaries",
+      "Reduce the embedding dimension", "Increase the batch size",
+      "Remove duplicate documents"),
+    q("Embedding 150 short documents at batch size 32 requires approximately:",
+      "5 batches", "150 batches", "1 batch", "32 batches"),
+    q("The cosine similarity of a vector with itself is:",
+      "1", "0", "-1", "Its dimension"),
+    q("Two vectors pointing in exactly opposite directions have cosine similarity:",
+      "-1", "0", "1", "384"),
+    q("Cosine similarity ignores vector magnitude, which means:",
+      "A long and a short text about the same topic can still score highly",
+      "Long texts always win", "Short texts always win", "Magnitude must be zero"),
+    q("Euclidean distance on L2-normalised vectors is:",
+      "Monotonically related to cosine similarity",
+      "Completely unrelated to cosine similarity", "Always zero", "Always negative"),
+    q("The curse of dimensionality refers to:",
+      "Distances becoming less discriminative as dimensions grow",
+      "Models having too few parameters", "Files being too small",
+      "Queries being too short"),
+    q("Dimensionality reduction such as PCA is used in this simulation to:",
+      "Visualise the embedding space in two dimensions",
+      "Improve retrieval accuracy", "Compress the document text",
+      "Encrypt the embeddings"),
+    q("In the embedding scatter plot, documents of the same category cluster because:",
+      "Their contents are semantically similar",
+      "They were uploaded together", "They share a document id prefix",
+      "They have equal word counts"),
+    q("Quantising embeddings from float32 to int8 mainly:",
+      "Reduces memory usage with a small accuracy loss",
+      "Increases the embedding dimension", "Removes the need for a model",
+      "Guarantees perfect recall"),
+    q("Caching the model with st.cache_resource avoids:",
+      "Reloading the transformer on every rerun",
+      "Displaying the results", "Computing cosine similarity",
+      "Reading the CSV file"),
+    q("In Streamlit, session state is used here to keep:",
+      "The index, results and trials across reruns",
+      "The CSS stylesheet", "The model weights on disk",
+      "The user's password"),
+    q("Storing the dataset in data/documents.csv rather than in code makes the system:",
+      "Easier to update without editing the application",
+      "Impossible to extend", "Faster to encode", "Independent of the model"),
+    q("When a user uploads documents, the index signature changes so that:",
+      "The application knows the stored index is stale",
+      "The uploaded file is deleted", "The threshold resets to 1",
+      "The model is retrained"),
+    q("Which metric best shows how confidently the top result beats the rest?",
+      "The gap between the first and second similarity scores",
+      "The total number of documents", "The index build time",
+      "The number of categories"),
+    q("If every score in a search falls below 0.2, the most likely reason is:",
+      "The collection contains nothing related to the query",
+      "The embedding dimension is wrong", "Top-K is too large",
+      "The chart failed to render"),
+    q("A search over a 100,000 document collection would most likely need:",
+      "An approximate nearest neighbour index",
+      "A larger similarity threshold only", "Fewer categories",
+      "A smaller Top-K only"),
+    q("The main computational cost at query time in this system is:",
+      "Encoding the query and scanning the index",
+      "Rebuilding all document embeddings", "Reloading the CSS",
+      "Regenerating the PDF report"),
+    q("Normalising embeddings at encode time lets similarity be computed as:",
+      "A single matrix multiplication of unit vectors",
+      "A sort operation", "A string comparison", "A hash lookup"),
+    q("Recording trials during the experiment is useful because it:",
+      "Lets you compare how parameters change the retrieved results",
+      "Speeds up the encoder", "Reduces the index size",
+      "Removes irrelevant documents permanently"),
+    q("Which change would most improve recall for a paraphrased query?",
+      "Lowering the similarity threshold", "Raising the threshold",
+      "Reducing Top-K to 1", "Removing the index"),
+    q("Semantic search applied to customer support mainly helps by:",
+      "Matching a user's wording to differently worded help articles",
+      "Encrypting the tickets", "Deleting old tickets",
+      "Assigning staff schedules"),
+    q("In plagiarism detection, dense embeddings help detect:",
+      "Reworded passages that share meaning",
+      "Only exact copied sentences", "Font and layout changes",
+      "File compression artefacts"),
+    q("A practical privacy concern with embedding services is that:",
+      "Document text may leave the organisation during encoding",
+      "Vectors cannot be stored", "Cosine similarity is reversible by design",
+      "Indexes cannot be deleted"),
+    q("The overall conclusion of this experiment is that:",
+      "Dense embeddings with cosine similarity retrieve semantically relevant documents",
+      "Keyword matching is always superior", "Embeddings cannot be compared numerically",
+      "Ranking requires no scoring function"),
+]
+
+# ============================================================
+# EXTRA STYLES FOR THE LIVE PROCESS VIEW
+# ============================================================
+
+render_html(
+    """
+    <style>
+
+    .pipeline-stage.stage-done {
+        background: #eaf7ee;
+        border-color: #9bd5ad;
+        color: #1d6b38;
+    }
+
+    .pipeline-stage.stage-active {
+        background: #fff1e4;
+        border-color: #f4a26a;
+        color: #b4530c;
+        box-shadow: 0 0 0 2px rgba(244, 119, 33, 0.18);
+    }
+
+    .pipeline-stage.stage-todo {
+        background: #f7f7f7;
+        border-color: #e2e2e2;
+        color: #9a9a9a;
+    }
+
+    .live-log {
+        background: #0f1b24;
+        color: #d7f0ff;
+        font-family: "Consolas", "Monaco", monospace;
+        font-size: 13px;
+        line-height: 1.55;
+        padding: 14px 16px;
+        border-radius: 5px;
+        min-height: 120px;
+        white-space: pre-wrap;
+    }
+
+    .live-log .log-ok { color: #7ee2a8; }
+    .live-log .log-run { color: #ffc166; }
+
+    .quiz-progress {
+        color: #666666;
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+
+    .app-card {
+        border: 1px solid #e2e2e2;
+        border-top: 4px solid #2696d2;
+        border-radius: 5px;
+        padding: 16px 18px;
+        margin: 10px 0px;
+        background: #ffffff;
+        height: 100%;
+    }
+
+    .app-card-title {
+        color: #2696d2;
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .app-card-text {
+        color: #333333;
+        font-size: 15px;
+        line-height: 1.6;
+    }
+
+    </style>
+    """
+)
+
+
+# ============================================================
 # DATASET CONSTRUCTION AND LOADING
 # ============================================================
 
@@ -660,7 +1069,9 @@ def normalize_documents(df, id_prefix="DOC"):
 
     df["word_count"] = df["content"].astype(str).str.split().str.len()
 
-    return df[["id", "title", "category", "content", "source", "word_count"]].reset_index(drop=True)
+    return df[
+        ["id", "title", "category", "content", "source", "word_count"]
+    ].reset_index(drop=True)
 
 
 @st.cache_data
@@ -740,12 +1151,12 @@ related to a user's query.
 """
 
 THEORY_OBJECTIVES = [
-    "Understand dense text embeddings.",
+    "Understand dense text embeddings and the vector space they live in.",
     "Generate vector representations using SentenceTransformer.",
+    "Build and inspect an embedding index over a document collection.",
     "Understand cosine similarity between vectors.",
-    "Build an embedding index over a document collection.",
-    "Retrieve semantically similar documents.",
-    "Analyze the effect of Top-K and the similarity threshold.",
+    "Retrieve semantically similar documents for a natural language query.",
+    "Analyze the effect of Top-K and of the minimum similarity threshold.",
 ]
 
 THEORY_INTRODUCTION = """
@@ -790,86 +1201,105 @@ PROCEDURE_STEPS = [
     "Load the document collection from the dataset file.",
     "Optionally upload an additional document collection.",
     "Load the pretrained SentenceTransformer model.",
-    "Build the embedding index for all documents (Stage A).",
-    "Inspect the generated embeddings and index statistics.",
+    "Build the embedding index for all documents and watch Stage A run live.",
+    "Inspect the generated embeddings, the index statistics and the embedding map.",
     "Enter a natural language query (Stage B).",
-    "Generate the query embedding.",
-    "Calculate cosine similarity between the query and every document.",
+    "Follow the live query pipeline: preprocessing, encoding, similarity, ranking.",
     "Apply the similarity threshold and keep the Top-K documents.",
-    "Analyse the ranked results and generate a PDF report.",
+    "Record the trial and repeat with different parameters.",
+    "Generate the PDF report.",
 ]
 
-QUIZ_QUESTIONS = [
-    {
-        "question": "What is the main purpose of a sentence embedding?",
-        "options": [
-            "To convert text into a numerical vector",
-            "To delete all words from a sentence",
-            "To convert text into an image",
-            "To sort documents alphabetically",
-        ],
-        "answer": "To convert text into a numerical vector",
-    },
-    {
-        "question": "Which similarity measure is used in this experiment?",
-        "options": [
-            "Euclidean distance only",
-            "Cosine similarity",
-            "Manhattan distance only",
-            "Jaccard index only",
-        ],
-        "answer": "Cosine similarity",
-    },
-    {
-        "question": "What does Top-K represent?",
-        "options": [
-            "The number of input characters",
-            "The number of model layers",
-            "The number of returned documents",
-            "The embedding dimension",
-        ],
-        "answer": "The number of returned documents",
-    },
-    {
-        "question": "Which model is used to generate embeddings?",
-        "options": [
-            "SentenceTransformer",
-            "Linear Regression",
-            "Decision Tree",
-            "K-Means only",
-        ],
-        "answer": "SentenceTransformer",
-    },
-    {
-        "question": "A cosine similarity score close to 1 generally indicates:",
-        "options": [
-            "High semantic similarity",
-            "No relationship",
-            "A completely empty document",
-            "A failed search",
-        ],
-        "answer": "High semantic similarity",
-    },
-    {
-        "question": "What is the purpose of the embedding index?",
-        "options": [
-            "To store document embeddings so every query reuses them",
-            "To delete unused documents",
-            "To translate documents into other languages",
-            "To compress images inside documents",
-        ],
-        "answer": "To store document embeddings so every query reuses them",
-    },
-    {
-        "question": "Raising the minimum similarity threshold will usually:",
-        "options": [
-            "Return fewer but more relevant documents",
-            "Return every document in the collection",
-            "Increase the embedding dimension",
-            "Change the model architecture",
-        ],
-        "answer": "Return fewer but more relevant documents",
-    },
+APPLICATION_AREAS = [
+    (
+        "Web and Enterprise Search",
+        "Search engines combine a lexical index with dense retrieval so that a query "
+        "such as 'how do I stop my laptop from overheating' matches a document titled "
+        "'thermal throttling and fan maintenance', even though almost no words overlap. "
+        "In enterprise search the same approach lets employees find internal policies, "
+        "wikis and reports written in vocabulary they do not know in advance.",
+    ),
+    (
+        "Retrieval Augmented Generation",
+        "A large language model cannot know private or very recent data. In retrieval "
+        "augmented generation the user question is embedded, the most similar document "
+        "chunks are retrieved from a vector index, and those chunks are placed in the "
+        "model's prompt as context. This grounds the answer in real sources, reduces "
+        "hallucination and makes citation possible.",
+    ),
+    (
+        "Question Answering and Chatbots",
+        "Support chatbots embed the incoming question and retrieve the closest entries "
+        "from a knowledge base of previously answered questions. Because matching is "
+        "semantic, 'my card was declined' can be routed to an article titled 'payment "
+        "authorisation failures' without any keyword rule being written by hand.",
+    ),
+    (
+        "Customer Support Ticket Routing",
+        "Incoming tickets are embedded and compared with historical tickets and their "
+        "resolutions. Similar past cases are shown to the agent, and clusters in the "
+        "embedding space reveal recurring problems that deserve a permanent fix rather "
+        "than repeated manual handling.",
+    ),
+    (
+        "Recommendation Systems",
+        "Articles, courses, products or videos are embedded from their descriptions, and "
+        "an item is recommended when its vector is close to the vectors of items the user "
+        "already engaged with. This content based signal works for new items that have no "
+        "interaction history, which is where collaborative filtering fails.",
+    ),
+    (
+        "Research Paper and Patent Search",
+        "Researchers rarely know the exact terminology used by every related field. "
+        "Embedding abstracts allows a search for 'predicting protein folding with neural "
+        "networks' to surface relevant work that uses entirely different wording, and "
+        "nearest neighbour search over the same index reveals prior art for patents.",
+    ),
+    (
+        "Legal and Regulatory Document Retrieval",
+        "Contracts, judgements and regulations are long and highly repetitive. Semantic "
+        "retrieval over clause level chunks lets a lawyer find every clause that limits "
+        "liability, however it is phrased, and compare it against a standard template.",
+    ),
+    (
+        "Medical and Clinical Information Retrieval",
+        "Clinical notes mix abbreviations, drug names and informal descriptions. Dense "
+        "retrieval links a symptom description to relevant guidelines and literature, "
+        "supporting decision making. Such systems are used as assistive tools and their "
+        "output is always reviewed by a qualified clinician.",
+    ),
+    (
+        "Plagiarism and Duplicate Detection",
+        "Exact string matching misses paraphrased text. Because embeddings encode meaning, "
+        "two passages that say the same thing in different words still land close together, "
+        "which exposes reworded copying and near duplicate records in a dataset.",
+    ),
+    (
+        "E-commerce Product Discovery",
+        "Shoppers describe what they want rather than what a product is called. Embedding "
+        "product titles and descriptions lets 'shoes for standing all day at work' retrieve "
+        "cushioned work footwear, and the same vectors power 'similar items' carousels.",
+    ),
+    (
+        "Educational Platforms and Virtual Labs",
+        "Learning platforms embed lessons, exercises and past questions so a student query "
+        "returns the exact section that explains the concept. The same technique can map a "
+        "student's wrong answer to the topic they should revise.",
+    ),
+    (
+        "Multilingual and Cross-lingual Search",
+        "Multilingual encoders place a sentence and its translation near each other in one "
+        "shared space, so a query written in Hindi or Marathi can retrieve relevant English "
+        "documents without any machine translation step at query time.",
+    ),
+]
+
+APPLICATION_LIMITATIONS = [
+    "Exact identifiers such as product codes, error numbers or citations are better handled by lexical matching, so production systems usually combine both.",
+    "An encoder performs worse on domains very different from its training data, and may need fine tuning on in-domain text.",
+    "Long documents must be split into chunks, because one vector cannot faithfully represent many pages.",
+    "Brute force scanning becomes slow on very large collections, so approximate nearest neighbour indexes such as HNSW or IVF are used.",
+    "Embedding text with a hosted service sends that text outside the organisation, which raises privacy and compliance questions.",
 ]
 
 
@@ -879,16 +1309,15 @@ QUIZ_QUESTIONS = [
 
 def initialize_session_state():
     defaults = {
-        "active_section": "Aim",
+        "active_section": "Aim and Introduction",
         "last_query": "",
         "last_results": [],
         "last_query_time": 0.0,
         "last_embedding_dimension": 0,
         "last_documents_compared": 0,
         "last_threshold": 0.25,
+        "last_score_distribution": None,
         "trials": [],
-        "quiz_submitted": False,
-        "quiz_score": 0,
         "index_built": False,
         "document_embeddings": None,
         "indexed_documents": None,
@@ -896,6 +1325,14 @@ def initialize_session_state():
         "index_build_time": 0.0,
         "uploaded_documents": None,
         "upload_message": "",
+        "pretest_submitted": False,
+        "pretest_score": 0,
+        "pretest_attempted": 0,
+        "posttest_submitted": False,
+        "posttest_score": 0,
+        "posttest_attempted": 0,
+        "pretest_page": 1,
+        "posttest_page": 1,
     }
 
     for key, value in defaults.items():
@@ -907,7 +1344,7 @@ initialize_session_state()
 
 
 # ============================================================
-# MODEL AND INDEXING
+# MODEL, INDEXING AND SEARCH
 # ============================================================
 
 @st.cache_resource
@@ -915,28 +1352,19 @@ def load_embedding_model():
     return SentenceTransformer(MODEL_NAME)
 
 
-def build_embedding_index(documents_df):
-    model = load_embedding_model()
+def pca_projection(embeddings, components=2):
+    """Small numpy PCA used only to visualise the embedding space."""
+    centered = embeddings - embeddings.mean(axis=0, keepdims=True)
+    _, _, vt = np.linalg.svd(centered, full_matrices=False)
+    return centered @ vt[:components].T
 
-    start = time.perf_counter()
 
-    embeddings = model.encode(
-        documents_df["content"].tolist(),
-        convert_to_numpy=True,
-        normalize_embeddings=True,
-        batch_size=32,
-        show_progress_bar=False,
-    )
-
-    elapsed = time.perf_counter() - start
-
+def store_index(embeddings, documents_df, elapsed):
     st.session_state.document_embeddings = embeddings
     st.session_state.indexed_documents = documents_df.reset_index(drop=True)
     st.session_state.index_signature = dataset_signature(documents_df)
     st.session_state.index_build_time = elapsed
     st.session_state.index_built = True
-
-    return embeddings, elapsed
 
 
 def index_is_current(documents_df):
@@ -947,28 +1375,23 @@ def index_is_current(documents_df):
     )
 
 
-def perform_semantic_search(query, top_k, threshold):
-    """Stage B: query embedding -> cosine similarity -> threshold -> Top-K."""
-    if not query or not query.strip():
-        return [], 0.0, 0, 0
-
+def compute_similarities(query, documents_df, embeddings):
     model = load_embedding_model()
-    documents_df = st.session_state.indexed_documents
-    document_embeddings = st.session_state.document_embeddings
-
-    start = time.perf_counter()
 
     query_embedding = model.encode(
-        [query],
-        convert_to_numpy=True,
-        normalize_embeddings=True,
+        [query], convert_to_numpy=True, normalize_embeddings=True
     )
 
-    scores = cosine_similarity(query_embedding, document_embeddings)[0]
+    scores = cosine_similarity(query_embedding, embeddings)[0]
 
+    return query_embedding[0], scores
+
+
+def assemble_results(scores, documents_df, top_k, threshold):
     order = np.argsort(scores)[::-1]
 
     results = []
+
     for index in order:
         score = float(scores[index])
 
@@ -993,9 +1416,7 @@ def perform_semantic_search(query, top_k, threshold):
         if len(results) >= top_k:
             break
 
-    query_time = time.perf_counter() - start
-
-    return results, query_time, int(query_embedding.shape[1]), len(documents_df)
+    return results
 
 
 def record_trial():
@@ -1097,15 +1518,15 @@ def generate_pdf_report(student_name, roll_number, department, experiment_date, 
 
     documents_df = get_active_documents()
 
-    setup_lines = [
+    for line in [
         f"Embedding Model: {MODEL_NAME}",
         f"Documents in Collection: {len(documents_df)}",
         f"Categories: {documents_df['category'].nunique()}",
         f"Embedding Dimension: {st.session_state.last_embedding_dimension or 384}",
         f"Index Status: {'Ready' if st.session_state.index_built else 'Not built'}",
-    ]
-
-    for line in setup_lines:
+        f"Pretest Score: {st.session_state.pretest_score}/{len(PRETEST_QUESTIONS)}",
+        f"Posttest Score: {st.session_state.posttest_score}/{len(POSTTEST_QUESTIONS)}",
+    ]:
         pdf.cell(0, 7, safe_pdf_text(line), ln=True)
 
     pdf.ln(4)
@@ -1193,41 +1614,69 @@ def render_breadcrumb():
         <div class="breadcrumb">
             Computer Science and Engineering
             &nbsp;&rsaquo;&nbsp;
-            KGIRS VIRTUAL LAB
+            Natural Language Processing Virtual Laboratory
             &nbsp;&rsaquo;&nbsp;
-            Experiment
+            Experiments
         </div>
         """
     )
 
 
-def render_pipeline(stages):
+def pipeline_markup(stages, active=None):
+    """Pipeline where stages before 'active' are done and the rest are pending."""
     parts = []
+
     for position, stage in enumerate(stages):
+        if active is None:
+            state = ""
+        elif position < active:
+            state = " stage-done"
+        elif position == active:
+            state = " stage-active"
+        else:
+            state = " stage-todo"
+
         if position:
             parts.append('<span class="pipeline-arrow">&rarr;</span>')
-        parts.append(f'<span class="pipeline-stage">{escape_html(stage)}</span>')
 
-    render_html('<div class="pipeline">' + "".join(parts) + "</div>")
+        parts.append(
+            f'<span class="pipeline-stage{state}">{escape_html(stage)}</span>'
+        )
+
+    return '<div class="pipeline">' + "".join(parts) + "</div>"
+
+
+def render_pipeline(stages, active=None):
+    render_html(pipeline_markup(stages, active))
+
+
+def log_markup(lines):
+    body = "<br>".join(lines)
+    return f'<div class="live-log">{body}</div>'
+
+
+INDEX_STAGES = [
+    "Documents",
+    "Preprocessing",
+    "SentenceTransformer",
+    "Dense Embeddings",
+    "Embedding Index",
+]
+
+QUERY_STAGES = [
+    "User Query",
+    "Preprocessing",
+    "Query Embedding",
+    "Cosine Similarity",
+    "Ranking",
+    "Top-K Results",
+]
 
 
 def render_left_navigation():
     render_html('<div class="left-navigation-title">Experiment Sections</div>')
 
-    sections = [
-        "Aim",
-        "Introduction",
-        "Theory",
-        "Pretest",
-        "Procedure",
-        "Simulation",
-        "Application",
-        "Posttest",
-        "References",
-        "Contributors",
-        "Feedback",
-        "Report Generation",
-    ]
+    sections = list(SECTION_RENDERERS.keys())
 
     active = st.session_state.active_section
 
@@ -1252,11 +1701,13 @@ def render_left_navigation():
 
 
 # ============================================================
-# STATIC SECTIONS
+# SECTION: AIM AND INTRODUCTION (merged)
 # ============================================================
 
-def render_aim():
-    render_html('<div class="content-heading">Aim of the experiment</div>')
+def render_aim_and_introduction():
+    render_html('<div class="content-heading">Aim and Introduction</div>')
+
+    render_html('<div class="content-subheading">Aim of the experiment</div>')
 
     render_html(
         """
@@ -1264,7 +1715,7 @@ def render_aim():
             <ul>
                 <li>To implement semantic search using dense embeddings.</li>
                 <li>To convert a document collection and a query into numerical vectors.</li>
-                <li>To build and inspect an embedding index.</li>
+                <li>To build, inspect and reuse an embedding index.</li>
                 <li>To calculate cosine similarity between embeddings.</li>
                 <li>To retrieve the most semantically relevant documents.</li>
                 <li>To study the effect of the Top-K parameter and the similarity threshold.</li>
@@ -1273,9 +1724,12 @@ def render_aim():
         """
     )
 
+    render_html('<div class="content-subheading">Objectives</div>')
 
-def render_introduction():
-    render_html('<div class="content-heading">Introduction</div>')
+    for objective in THEORY_OBJECTIVES:
+        st.markdown(f"- {objective}")
+
+    render_html('<div class="content-subheading">Introduction</div>')
 
     render_html(
         f'<div class="content-text">{to_html_paragraphs(THEORY_INTRODUCTION)}</div>'
@@ -1285,92 +1739,312 @@ def render_introduction():
 
     st.write(
         """
-        Keyword search depends mainly on matching exact words. Semantic
-        search understands the meaning of the query and can retrieve
-        related documents even when the wording is different.
+        Keyword search depends mainly on matching exact words. Semantic search
+        understands the meaning of the query and can retrieve related documents
+        even when the wording is completely different. This experiment builds
+        such a system end to end and shows every intermediate step, from raw
+        text to dense vectors to a ranked result list.
         """
     )
 
+    comparison = pd.DataFrame(
+        [
+            {
+                "Aspect": "Matching basis",
+                "Keyword Search": "Exact terms shared by query and document",
+                "Semantic Search": "Closeness of meaning in a vector space",
+            },
+            {
+                "Aspect": "Representation",
+                "Keyword Search": "Sparse high-dimensional term vectors",
+                "Semantic Search": "Dense fixed-length embeddings",
+            },
+            {
+                "Aspect": "Vocabulary mismatch",
+                "Keyword Search": "Fails when wording differs",
+                "Semantic Search": "Handled, paraphrases still match",
+            },
+            {
+                "Aspect": "Rare exact tokens",
+                "Keyword Search": "Handled very well",
+                "Semantic Search": "Can be missed",
+            },
+            {
+                "Aspect": "Cost",
+                "Keyword Search": "Cheap index, cheap query",
+                "Semantic Search": "Model inference needed for indexing and querying",
+            },
+        ]
+    )
 
-def render_theory():
-    render_html('<div class="content-heading">Theory</div>')
+    st.dataframe(comparison, use_container_width=True, hide_index=True)
+
+
+# ============================================================
+# SECTION: THEORY AND APPLICATION (merged)
+# ============================================================
+
+def render_theory_and_application():
+    render_html('<div class="content-heading">Theory and Application</div>')
 
     render_html('<div class="content-subheading">Dense Embeddings</div>')
     st.write(THEORY_EMBEDDINGS)
+
+    st.write(
+        """
+        The model used here, all-MiniLM-L6-v2, is a six-layer transformer that
+        produces a 384-dimensional vector for any input text. Tokens are first
+        embedded and contextualised through self-attention, and the token vectors
+        are then mean pooled into a single sentence vector. The model was trained
+        with a siamese objective on sentence pairs, so that pairs with the same
+        meaning are pulled together in the vector space and unrelated pairs are
+        pushed apart.
+        """
+    )
 
     render_html('<div class="content-subheading">Cosine Similarity</div>')
     st.write(THEORY_COSINE)
 
     st.latex(r"\text{Cosine Similarity}(A,B) = \frac{A \cdot B}{\|A\|\|B\|}")
 
-    render_html('<div class="content-subheading">Retrieval Pipeline</div>')
-
-    st.markdown("**Stage A — Document Indexing**")
-    render_pipeline(
-        ["Documents", "Preprocessing", "SentenceTransformer", "Dense Embeddings", "Embedding Index"]
+    st.write(
+        """
+        Because every embedding produced in this experiment is normalised to unit
+        length, the denominator becomes one and the similarity reduces to a plain
+        dot product. Comparing a query against the whole collection is therefore a
+        single matrix multiplication, which is why the search takes only a few
+        milliseconds for a few hundred documents.
+        """
     )
 
-    st.markdown("**Stage B — Query Search**")
-    render_pipeline(
-        ["User Query", "Query Embedding", "Cosine Similarity", "Ranking", "Top-K Documents"]
-    )
+    render_html('<div class="content-subheading">The Two-Stage Retrieval Pipeline</div>')
+
+    st.markdown("**Stage A — Document Indexing (performed once)**")
+    render_pipeline(INDEX_STAGES)
+
+    st.markdown("**Stage B — Query Search (performed per query)**")
+    render_pipeline(QUERY_STAGES)
 
     render_html('<div class="content-subheading">Important Terms</div>')
 
     terms = pd.DataFrame(
         [
             {"Term": "Embedding", "Meaning": "Numerical vector representation of text."},
-            {"Term": "Dense Vector", "Meaning": "Vector containing numerical values in many dimensions."},
-            {"Term": "Transformer", "Meaning": "Neural network architecture used for language understanding."},
-            {"Term": "SentenceTransformer", "Meaning": "Model that converts sentences into meaningful vectors."},
+            {"Term": "Dense Vector", "Meaning": "Fixed-length vector whose values are mostly non-zero."},
+            {"Term": "Transformer", "Meaning": "Neural architecture based on self-attention."},
+            {"Term": "Mean Pooling", "Meaning": "Averaging token vectors into one sentence vector."},
             {"Term": "Embedding Index", "Meaning": "Stored matrix of document embeddings reused for every query."},
-            {"Term": "Cosine Similarity", "Meaning": "Similarity measure based on the angle between vectors."},
-            {"Term": "Top-K", "Meaning": "Number of highest-ranked documents returned."},
+            {"Term": "Cosine Similarity", "Meaning": "Similarity based on the angle between two vectors."},
+            {"Term": "Top-K", "Meaning": "Number of highest ranked documents returned."},
             {"Term": "Similarity Threshold", "Meaning": "Minimum score a document must reach to be shown."},
-            {"Term": "Semantic Search", "Meaning": "Search based on meaning instead of exact keywords."},
+            {"Term": "Vector Database", "Meaning": "System that stores embeddings and serves similarity search."},
+            {"Term": "Semantic Search", "Meaning": "Retrieval based on meaning instead of exact keywords."},
         ]
     )
 
     st.dataframe(terms, use_container_width=True, hide_index=True)
 
+    render_html('<div class="content-heading">Application</div>')
+
+    st.write(
+        """
+        Dense embedding-based retrieval is the backbone of most modern search and
+        assistant systems. The areas below describe where it is used, what problem
+        it solves in that setting, and why a purely keyword based system is not
+        sufficient.
+        """
+    )
+
+    for position in range(0, len(APPLICATION_AREAS), 2):
+        columns = st.columns(2)
+
+        for column, (title, description) in zip(
+            columns, APPLICATION_AREAS[position:position + 2]
+        ):
+            with column:
+                render_html(
+                    f"""
+                    <div class="app-card">
+                        <div class="app-card-title">{escape_html(title)}</div>
+                        <div class="app-card-text">{escape_html(description)}</div>
+                    </div>
+                    """
+                )
+
+    render_html('<div class="content-subheading">Practical Limitations</div>')
+
+    for limitation in APPLICATION_LIMITATIONS:
+        st.markdown(f"- {limitation}")
+
+    render_html(
+        """
+        <div class="info-box">
+            In production, dense retrieval is usually combined with a lexical
+            ranker such as BM25 and followed by a cross-encoder re-ranker. The
+            dense stage supplies recall, the lexical stage protects exact matches,
+            and the re-ranker sharpens the final order.
+        </div>
+        """
+    )
+
+
+# ============================================================
+# QUIZ RENDERING (50 questions per test, 10 per page)
+# ============================================================
+
+QUESTIONS_PER_PAGE = 10
+
+
+def render_quiz(bank, prefix, heading, intro):
+    render_html(f'<div class="content-heading">{heading}</div>')
+    st.write(intro)
+
+    total = len(bank)
+    pages = (total + QUESTIONS_PER_PAGE - 1) // QUESTIONS_PER_PAGE
+
+    answered = sum(
+        1 for index in range(total) if st.session_state.get(f"{prefix}_answer_{index}")
+    )
+
+    render_html(
+        f'<div class="quiz-progress">Questions attempted: '
+        f"{answered} of {total}</div>"
+    )
+
+    st.progress(answered / total)
+
+    page = st.selectbox(
+        "Question set",
+        list(range(1, pages + 1)),
+        index=st.session_state[f"{prefix}_page"] - 1,
+        format_func=lambda p: (
+            f"Questions {(p - 1) * QUESTIONS_PER_PAGE + 1}"
+            f"-{min(p * QUESTIONS_PER_PAGE, total)}"
+        ),
+        key=f"{prefix}_page_select",
+    )
+
+    st.session_state[f"{prefix}_page"] = page
+
+    start = (page - 1) * QUESTIONS_PER_PAGE
+    end = min(start + QUESTIONS_PER_PAGE, total)
+
+    for index in range(start, end):
+        question = bank[index]
+
+        options = question["options"]
+        shift = index % len(options)
+        ordered = options[shift:] + options[:shift]
+
+        st.markdown(f"**Q{index + 1}. {question['question']}**")
+
+        st.radio(
+            "Select an option:",
+            ordered,
+            index=None,
+            key=f"{prefix}_answer_{index}",
+            label_visibility="collapsed",
+        )
+
+        if st.session_state.get(f"{prefix}_submitted"):
+            chosen = st.session_state.get(f"{prefix}_answer_{index}")
+
+            if chosen is None:
+                st.warning(f"Not attempted. Correct answer: {question['answer']}")
+            elif chosen == question["answer"]:
+                st.success("Correct.")
+            else:
+                st.error(f"Incorrect. Correct answer: {question['answer']}")
+
+        st.markdown("---")
+
+    action_col, reset_col = st.columns(2)
+
+    with action_col:
+        if st.button("Submit and Evaluate", key=f"{prefix}_submit", use_container_width=True):
+            score = 0
+            attempted = 0
+
+            for index, question in enumerate(bank):
+                chosen = st.session_state.get(f"{prefix}_answer_{index}")
+
+                if chosen is not None:
+                    attempted += 1
+
+                    if chosen == question["answer"]:
+                        score += 1
+
+            st.session_state[f"{prefix}_score"] = score
+            st.session_state[f"{prefix}_attempted"] = attempted
+            st.session_state[f"{prefix}_submitted"] = True
+
+    with reset_col:
+        if st.button("Clear All Answers", key=f"{prefix}_reset", use_container_width=True):
+            for index in range(total):
+                st.session_state.pop(f"{prefix}_answer_{index}", None)
+
+            st.session_state[f"{prefix}_submitted"] = False
+            st.session_state[f"{prefix}_score"] = 0
+            st.session_state[f"{prefix}_attempted"] = 0
+
+    if st.session_state.get(f"{prefix}_submitted"):
+        score = st.session_state[f"{prefix}_score"]
+        attempted = st.session_state[f"{prefix}_attempted"]
+
+        render_html(
+            f"""
+            <div class="result-box">
+                <b>Result</b><br>
+                Score: {score} out of {total}<br>
+                Attempted: {attempted} of {total}<br>
+                Percentage: {score / total * 100:.2f}%
+            </div>
+            """
+        )
+
 
 def render_pretest():
-    render_html('<div class="content-heading">Pretest</div>')
-    st.write("Answer the following questions before performing the experiment.")
+    render_quiz(
+        PRETEST_QUESTIONS,
+        "pretest",
+        "Pretest",
+        "This pretest contains 50 questions covering the basic concepts needed "
+        "before performing the experiment. Questions are shown ten at a time; "
+        "your answers are retained while you move between sets.",
+    )
 
-    with st.form("pretest_form"):
-        answers = {}
 
-        for index, question in enumerate(QUIZ_QUESTIONS[:3]):
-            st.markdown(f"**Q{index + 1}. {question['question']}**")
-            answers[index] = st.radio("Select an answer:", question["options"], key=f"pretest_{index}")
-
-        submitted = st.form_submit_button("Submit Pretest")
-
-    if submitted:
-        score = sum(
-            1
-            for index, question in enumerate(QUIZ_QUESTIONS[:3])
-            if answers[index] == question["answer"]
-        )
-        st.success(f"Your pretest score is {score}/3.")
+def render_posttest():
+    render_quiz(
+        POSTTEST_QUESTIONS,
+        "posttest",
+        "Posttest",
+        "This posttest contains 50 questions on indexing, similarity, ranking, "
+        "evaluation and the practical behaviour you observed in the simulation. "
+        "Attempt all sets and submit to see your score with the correct answers.",
+    )
 
 
 def render_procedure():
     render_html('<div class="content-heading">Procedure</div>')
 
     for index, step in enumerate(PROCEDURE_STEPS, start=1):
-        render_html(f'<div class="content-text"><b>{index}.</b> {escape_html(step)}</div>')
+        render_html(
+            f'<div class="content-text"><b>{index}.</b> {escape_html(step)}</div>'
+        )
 
     render_html('<div class="content-subheading">Input</div>')
     st.write("A document collection and a natural language query entered by the user.")
 
     render_html('<div class="content-subheading">Output</div>')
-    st.write("Ranked documents with cosine similarity scores, filtered by Top-K and the threshold.")
+    st.write(
+        "Ranked documents with cosine similarity scores, filtered by the "
+        "Top-K limit and the minimum similarity threshold."
+    )
 
 
 # ============================================================
-# SIMULATION SECTION
+# SIMULATION: DATASET PANEL
 # ============================================================
 
 def render_dataset_panel(documents_df, source_label):
@@ -1453,13 +2127,175 @@ def render_dataset_panel(documents_df, source_label):
             st.info(st.session_state.upload_message)
 
 
-def render_indexing_panel(documents_df):
-    render_html('<div class="stage-label">STAGE A</div>')
-    render_html('<div class="content-subheading">2. Document Indexing</div>')
+# ============================================================
+# SIMULATION: STAGE A WITH LIVE VISUALISATION
+# ============================================================
 
-    render_pipeline(
-        ["Documents", "Preprocessing", "SentenceTransformer", "Dense Embeddings", "Embedding Index"]
+def run_live_indexing(documents_df, live, batch_size=16, pause=0.15):
+    """Encode the collection batch by batch, showing every step as it happens."""
+    model_placeholder = st.empty()
+    pipeline_placeholder = st.empty()
+    log_placeholder = st.empty()
+    progress_placeholder = st.empty()
+    metric_placeholder = st.empty()
+    preview_placeholder = st.empty()
+
+    logs = []
+
+    def log(message, style="log-run"):
+        logs.append(f'<span class="{style}">{message}</span>')
+        if live:
+            log_placeholder.markdown(log_markup(logs[-14:]), unsafe_allow_html=True)
+
+    def stage(active):
+        if live:
+            pipeline_placeholder.markdown(
+                pipeline_markup(INDEX_STAGES, active), unsafe_allow_html=True
+            )
+
+    start = time.perf_counter()
+
+    # ---- Stage 0: documents ----
+    stage(0)
+    log(f"[1/5] Reading document collection ... {len(documents_df)} documents loaded.")
+    if live:
+        time.sleep(pause)
+
+    # ---- Stage 1: preprocessing ----
+    stage(1)
+    texts = documents_df["content"].astype(str).tolist()
+    total_words = int(documents_df["word_count"].sum())
+    log(f"[2/5] Preprocessing text ... {total_words} words, {len(texts)} passages queued.")
+
+    if live:
+        sample = pd.DataFrame(
+            {
+                "id": documents_df["id"].head(5),
+                "characters": [len(t) for t in texts[:5]],
+                "words": [len(t.split()) for t in texts[:5]],
+                "first tokens": [" | ".join(t.split()[:8]) + " ..." for t in texts[:5]],
+            }
+        )
+        preview_placeholder.dataframe(sample, use_container_width=True, hide_index=True)
+        time.sleep(pause)
+
+    # ---- Stage 2: model ----
+    stage(2)
+    log(f"[3/5] Loading SentenceTransformer model '{MODEL_NAME}' ...")
+    if live:
+        model_placeholder.caption("Loading the transformer (cached after the first run).")
+
+    model = load_embedding_model()
+    log("      Model ready. Tokenizer and 6 transformer layers initialised.", "log-ok")
+    if live:
+        model_placeholder.empty()
+
+    # ---- Stage 3: encoding ----
+    stage(3)
+    log(f"[4/5] Encoding documents in batches of {batch_size} ...")
+
+    progress = progress_placeholder.progress(0.0) if live else None
+
+    chunks = []
+    encoded = 0
+
+    for start_index in range(0, len(texts), batch_size):
+        batch = texts[start_index:start_index + batch_size]
+
+        vectors = model.encode(
+            batch,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+
+        chunks.append(vectors)
+        encoded += len(batch)
+
+        if live:
+            progress.progress(encoded / len(texts))
+
+            log(
+                f"      batch {len(chunks):>3} | documents {encoded}/{len(texts)}"
+                f" | vector shape {vectors.shape}"
+            )
+
+            running = np.vstack(chunks)
+
+            metric_placeholder.markdown(
+                f"**Encoded:** {encoded}/{len(texts)} &nbsp;&nbsp;|&nbsp;&nbsp; "
+                f"**Index shape:** {running.shape} &nbsp;&nbsp;|&nbsp;&nbsp; "
+                f"**Mean vector norm:** {np.linalg.norm(running, axis=1).mean():.3f}"
+            )
+
+            preview_placeholder.dataframe(
+                pd.DataFrame(
+                    vectors[: min(3, len(vectors)), :12].round(4),
+                    index=documents_df["id"].iloc[start_index:start_index + min(3, len(vectors))],
+                    columns=[f"d{i}" for i in range(12)],
+                ),
+                use_container_width=True,
+            )
+
+            time.sleep(pause / 2)
+
+    embeddings = np.vstack(chunks)
+
+    # ---- Stage 4: index ----
+    stage(4)
+    elapsed = time.perf_counter() - start
+    log(
+        f"[5/5] Embedding index built: {embeddings.shape[0]} vectors x "
+        f"{embeddings.shape[1]} dimensions in {elapsed:.2f} s.",
+        "log-ok",
     )
+
+    if live:
+        pipeline_placeholder.markdown(
+            pipeline_markup(INDEX_STAGES, len(INDEX_STAGES)), unsafe_allow_html=True
+        )
+        progress_placeholder.empty()
+
+    store_index(embeddings, documents_df, elapsed)
+
+    return embeddings
+
+
+def render_embedding_map(embeddings, documents_df):
+    points = pca_projection(embeddings)
+
+    frame = pd.DataFrame(
+        {
+            "x": points[:, 0],
+            "y": points[:, 1],
+            "Title": documents_df["title"],
+            "Category": documents_df["category"],
+        }
+    )
+
+    figure = px.scatter(
+        frame,
+        x="x",
+        y="y",
+        color="Category",
+        hover_name="Title",
+        title="Embedding space (PCA projection of the index to 2 dimensions)",
+    )
+
+    figure.update_layout(height=470, xaxis_title="Component 1", yaxis_title="Component 2")
+    figure.update_traces(marker={"size": 9, "opacity": 0.8})
+
+    st.plotly_chart(figure, use_container_width=True)
+
+    st.caption(
+        "Each point is one document vector. Documents from the same subject area "
+        "form clusters, which is the property cosine similarity exploits at query time."
+    )
+
+
+def render_indexing_panel(documents_df, live):
+    render_html('<div class="stage-label">STAGE A</div>')
+    render_html('<div class="content-subheading">2. Document Indexing (live)</div>')
 
     if not index_is_current(documents_df):
         render_html(
@@ -1470,11 +2306,10 @@ def render_indexing_panel(documents_df):
             </div>
             """
         )
+        render_pipeline(INDEX_STAGES, 0)
 
     if st.button("Build Embedding Index", use_container_width=True):
-        with st.spinner(f"Generating embeddings for {len(documents_df)} documents..."):
-            build_embedding_index(documents_df)
-
+        run_live_indexing(documents_df, live)
         st.session_state.last_results = []
         st.success("Embedding index created successfully.")
 
@@ -1492,28 +2327,161 @@ def render_indexing_panel(documents_df):
             st.write(f"**Number of documents:** {embeddings.shape[0]}")
             st.write(f"**Embedding dimension:** {embeddings.shape[1]}")
             st.write("**Embedding type:** Dense floating-point vector (L2 normalised)")
+            st.write(f"**Index memory:** {embeddings.nbytes / 1024:.1f} KB")
 
             st.caption(
-                "First 5 documents, first 16 of "
-                f"{embeddings.shape[1]} dimensions."
+                f"First 5 documents, first 16 of {embeddings.shape[1]} dimensions."
             )
 
-            preview = pd.DataFrame(
-                embeddings[:5, :16].round(4),
-                index=st.session_state.indexed_documents["id"].head(5),
-                columns=[f"d{i}" for i in range(16)],
+            st.dataframe(
+                pd.DataFrame(
+                    embeddings[:5, :16].round(4),
+                    index=st.session_state.indexed_documents["id"].head(5),
+                    columns=[f"d{i}" for i in range(16)],
+                ),
+                use_container_width=True,
             )
 
-            st.dataframe(preview, use_container_width=True)
+        with st.expander("View the embedding space map", expanded=False):
+            render_embedding_map(embeddings, st.session_state.indexed_documents)
 
 
-def render_search_panel(documents_df):
-    render_html('<div class="stage-label">STAGE B</div>')
-    render_html('<div class="content-subheading">3. Query Search</div>')
+# ============================================================
+# SIMULATION: STAGE B WITH LIVE VISUALISATION
+# ============================================================
 
-    render_pipeline(
-        ["User Query", "Query Embedding", "Cosine Similarity", "Ranking", "Top-K Documents"]
+def run_live_search(query, documents_df, embeddings, top_k, threshold, live, pause=0.35):
+    pipeline_placeholder = st.empty()
+    log_placeholder = st.empty()
+    detail_placeholder = st.container()
+
+    logs = []
+
+    def log(message, style="log-run"):
+        logs.append(f'<span class="{style}">{message}</span>')
+        if live:
+            log_placeholder.markdown(log_markup(logs[-12:]), unsafe_allow_html=True)
+
+    def stage(active):
+        if live:
+            pipeline_placeholder.markdown(
+                pipeline_markup(QUERY_STAGES, active), unsafe_allow_html=True
+            )
+
+    start = time.perf_counter()
+
+    # ---- 0: query received ----
+    stage(0)
+    log(f"[1/6] Query received: \"{escape_html(query)}\"")
+    if live:
+        time.sleep(pause)
+
+    # ---- 1: preprocessing ----
+    stage(1)
+    tokens = query.split()
+    log(f"[2/6] Preprocessing: {len(query)} characters, {len(tokens)} whitespace tokens.")
+    if live:
+        time.sleep(pause)
+
+    # ---- 2: query embedding ----
+    stage(2)
+    log("[3/6] Encoding the query with the same model used for the documents ...")
+
+    query_vector, scores = compute_similarities(query, documents_df, embeddings)
+
+    log(
+        f"      Query vector generated: shape ({query_vector.shape[0]},), "
+        f"norm {np.linalg.norm(query_vector):.3f}.",
+        "log-ok",
     )
+
+    if live:
+        with detail_placeholder:
+            preview = pd.DataFrame(
+                {
+                    "dimension": [f"d{i}" for i in range(24)],
+                    "value": query_vector[:24],
+                }
+            )
+
+            vector_figure = px.bar(
+                preview,
+                x="dimension",
+                y="value",
+                title="Query embedding (first 24 of "
+                f"{query_vector.shape[0]} dimensions)",
+            )
+            vector_figure.update_layout(height=260, xaxis_title="", yaxis_title="value")
+
+            st.plotly_chart(vector_figure, use_container_width=True)
+
+        time.sleep(pause)
+
+    # ---- 3: cosine similarity ----
+    stage(3)
+    log(
+        f"[4/6] Computing cosine similarity against {len(documents_df)} document vectors "
+        "(single matrix multiplication of unit vectors)."
+    )
+
+    if live:
+        with detail_placeholder:
+            histogram = px.histogram(
+                pd.DataFrame({"Cosine Similarity": scores}),
+                x="Cosine Similarity",
+                nbins=40,
+                title="Distribution of similarity scores across the whole collection",
+            )
+
+            histogram.add_vline(
+                x=threshold,
+                line_dash="dash",
+                line_color="#f47721",
+                annotation_text=f"threshold {threshold:.2f}",
+            )
+
+            histogram.update_layout(height=300, yaxis_title="Number of documents")
+
+            st.plotly_chart(histogram, use_container_width=True)
+
+        log(
+            f"      max {scores.max():.4f} | mean {scores.mean():.4f} | "
+            f"min {scores.min():.4f}"
+        )
+        time.sleep(pause)
+
+    # ---- 4: ranking ----
+    stage(4)
+    above = int((scores >= threshold).sum())
+    log(
+        f"[5/6] Ranking documents by score. {above} of {len(scores)} documents "
+        f"reach the threshold of {threshold:.2f}."
+    )
+    if live:
+        time.sleep(pause)
+
+    # ---- 5: top-k ----
+    stage(5)
+    results = assemble_results(scores, documents_df, top_k, threshold)
+    elapsed = time.perf_counter() - start
+
+    log(
+        f"[6/6] Returning the Top-{top_k} documents: {len(results)} results "
+        f"in {elapsed * 1000:.1f} ms.",
+        "log-ok",
+    )
+
+    if live:
+        pipeline_placeholder.markdown(
+            pipeline_markup(QUERY_STAGES, len(QUERY_STAGES)), unsafe_allow_html=True
+        )
+
+    return results, elapsed, int(query_vector.shape[0]), scores
+
+
+def render_search_panel(documents_df, live):
+    render_html('<div class="stage-label">STAGE B</div>')
+    render_html('<div class="content-subheading">3. Query Search (live)</div>')
 
     query = st.text_area(
         "Enter your search query",
@@ -1538,17 +2506,22 @@ def render_search_panel(documents_df):
             st.warning("Please enter a query.")
 
         else:
-            with st.spinner("Encoding the query and computing cosine similarity..."):
-                results, query_time, dimension, compared = perform_semantic_search(
-                    query, top_k, threshold
-                )
+            results, elapsed, dimension, scores = run_live_search(
+                query,
+                st.session_state.indexed_documents,
+                st.session_state.document_embeddings,
+                top_k,
+                threshold,
+                live,
+            )
 
             st.session_state.last_query = query
             st.session_state.last_results = results
-            st.session_state.last_query_time = query_time
+            st.session_state.last_query_time = elapsed
             st.session_state.last_embedding_dimension = dimension
-            st.session_state.last_documents_compared = compared
+            st.session_state.last_documents_compared = len(scores)
             st.session_state.last_threshold = threshold
+            st.session_state.last_score_distribution = scores
 
             if not results:
                 st.warning(
@@ -1563,7 +2536,7 @@ def render_results_panel():
     if not results:
         return
 
-    render_html('<div class="content-subheading">4. Query Processing Information</div>')
+    render_html('<div class="content-subheading">4. Query Processing Summary</div>')
 
     st.info(f"Query received: {st.session_state.last_query}")
 
@@ -1587,7 +2560,6 @@ def render_results_panel():
 
     chart_df = results_df.copy()
     chart_df["Document"] = chart_df["Rank"].astype(str) + ". " + chart_df["Title"]
-
     chart_df = chart_df.sort_values("Similarity").reset_index(drop=True)
     chart_df["Score"] = chart_df["Similarity"].round(4)
 
@@ -1638,11 +2610,18 @@ def render_simulation():
     render_html(
         """
         <div class="info-box">
-            The simulation runs in two stages. In Stage A the document collection
-            is converted into dense embeddings and stored as an index. In Stage B
-            a query is embedded and compared with that index using cosine similarity.
+            The simulation runs in two stages and shows the work as it happens.
+            In Stage A the document collection is preprocessed and converted into
+            dense embeddings batch by batch, and the resulting index is stored.
+            In Stage B the query is encoded, compared with every stored vector
+            using cosine similarity, ranked and filtered into the final result list.
         </div>
         """
+    )
+
+    live = st.checkbox(
+        "Show the live process visualisation (pipeline, batch log and intermediate data)",
+        value=True,
     )
 
     documents_df = get_active_documents()
@@ -1652,8 +2631,8 @@ def render_simulation():
         source_label = f"{source_label} + uploaded file"
 
     render_dataset_panel(documents_df, source_label)
-    render_indexing_panel(documents_df)
-    render_search_panel(documents_df)
+    render_indexing_panel(documents_df, live)
+    render_search_panel(documents_df, live)
     render_results_panel()
 
 
@@ -1661,76 +2640,16 @@ def render_simulation():
 # REMAINING SECTIONS
 # ============================================================
 
-def render_application():
-    render_html('<div class="content-heading">Application</div>')
-
-    st.write(
-        "Dense embedding-based semantic search can be used in many real-world applications."
-    )
-
-    applications = [
-        "Search engines",
-        "Question-answering systems",
-        "Document retrieval",
-        "Chatbots and retrieval augmented generation",
-        "Recommendation systems",
-        "Research paper search",
-        "Customer support systems",
-        "Legal document search",
-        "Medical information retrieval",
-        "Educational learning platforms",
-    ]
-
-    for application in applications:
-        st.markdown(f"- {application}")
-
-
-def render_posttest():
-    render_html('<div class="content-heading">Posttest</div>')
-    st.write("Answer all questions to test your understanding.")
-
-    with st.form("posttest_form"):
-        answers = {}
-
-        for index, question in enumerate(QUIZ_QUESTIONS):
-            st.markdown(f"**Q{index + 1}. {question['question']}**")
-            answers[index] = st.radio("Select an option:", question["options"], key=f"posttest_{index}")
-
-        submitted = st.form_submit_button("Submit Quiz", use_container_width=True)
-
-    if submitted:
-        st.session_state.quiz_score = sum(
-            1
-            for index, question in enumerate(QUIZ_QUESTIONS)
-            if answers[index] == question["answer"]
-        )
-        st.session_state.quiz_submitted = True
-
-    if st.session_state.quiz_submitted:
-        score = st.session_state.quiz_score
-        total = len(QUIZ_QUESTIONS)
-
-        render_html(
-            f"""
-            <div class="result-box">
-                <b>Quiz Result</b><br>
-                Score: {score}/{total}<br>
-                Percentage: {score / total * 100:.2f}%
-            </div>
-            """
-        )
-
-
 def render_references():
     render_html('<div class="content-heading">References</div>')
 
     references = [
         "Sentence Transformers documentation",
         "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks",
+        "Attention Is All You Need, the original transformer paper",
         "Scikit-learn cosine similarity documentation",
-        "Natural Language Processing textbooks",
         "Introduction to Information Retrieval concepts",
-        "Dense Retrieval and Vector Search concepts",
+        "Dense Passage Retrieval and vector search literature",
     ]
 
     for index, reference in enumerate(references, start=1):
@@ -1796,8 +2715,8 @@ def render_report_generation():
 
     st.write(
         """
-        Enter your details and generate a PDF report containing the aim,
-        theory, experimental setup, observations and recorded trials.
+        Enter your details and generate a PDF report containing the aim, theory,
+        experimental setup, quiz scores, observations and recorded trials.
         """
     )
 
@@ -1814,10 +2733,11 @@ def render_report_generation():
     observations = st.text_area(
         "Observations",
         value=(
-            "The document collection was converted into dense embeddings and stored "
-            "as an embedding index. Each query was encoded with the same model and "
-            "compared against the index using cosine similarity. The Top-K limit and "
-            "the similarity threshold controlled how many documents were returned."
+            "The document collection was preprocessed and converted into dense "
+            "embeddings batch by batch, and the vectors were stored as an embedding "
+            "index. Each query was encoded with the same model and compared against "
+            "the index using cosine similarity. The Top-K limit and the similarity "
+            "threshold controlled how many documents were returned."
         ),
         height=150,
     )
@@ -1870,13 +2790,11 @@ def render_report_generation():
 # ============================================================
 
 SECTION_RENDERERS = {
-    "Aim": render_aim,
-    "Introduction": render_introduction,
-    "Theory": render_theory,
+    "Aim and Introduction": render_aim_and_introduction,
+    "Theory and Application": render_theory_and_application,
     "Pretest": render_pretest,
     "Procedure": render_procedure,
     "Simulation": render_simulation,
-    "Application": render_application,
     "Posttest": render_posttest,
     "References": render_references,
     "Contributors": render_contributors,
@@ -1886,7 +2804,9 @@ SECTION_RENDERERS = {
 
 
 def render_selected_content():
-    renderer = SECTION_RENDERERS.get(st.session_state.active_section, render_aim)
+    renderer = SECTION_RENDERERS.get(
+        st.session_state.active_section, render_aim_and_introduction
+    )
     renderer()
 
 
