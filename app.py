@@ -1650,7 +1650,7 @@ CONCEPT_ANIMATION_HTML = r"""
         await sleep(1100);
 
         // ---- Phase 4: rank and highlight the closest ----
-        setCaption("Step 4 of 4 — The closest points are the most relevant documents.");
+        setCaption("Ranking by similarity — the closest points are the most relevant documents.");
 
         DOCS.forEach((doc, i) => {
             const line = document.getElementById("line-" + i);
