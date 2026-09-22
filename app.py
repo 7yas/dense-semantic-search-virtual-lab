@@ -31,6 +31,8 @@ st.set_page_config(
 
 DATA_FILE = Path("data/documents.csv")
 MODEL_NAME = "all-MiniLM-L6-v2"
+BASE_DIR = Path(__file__).resolve().parent
+THEORY_FIGURE_DIR = BASE_DIR / "assets" / "theory"
 
 
 # ============================================================
@@ -2610,104 +2612,384 @@ def render_aim_and_introduction():
 # ============================================================
 
 def render_theory_and_application():
+    """Render the expanded theory section without changing the Simulation section."""
     render_html('<div class="content-heading">Theory and Application</div>')
 
-    render_html('<div class="content-subheading">Dense Embeddings</div>')
-    st.write(THEORY_EMBEDDINGS)
+    # ------------------------------------------------------------------
+    # 1. Keyword search versus dense semantic search
+    # ------------------------------------------------------------------
+    render_html('<div class="content-subheading">Keyword Search vs. Semantic Search</div>')
 
-    st.write(
+    left_col, right_col = st.columns(2)
+
+    with left_col:
+        render_html(
+            """
+            <div class="result-card" style="border-left-color:#e05252; background:#fff7f7;">
+                <div class="result-title" style="color:#b83232; font-size:20px;">
+                    Traditional Keyword Matching
+                </div>
+                <div class="result-content">
+                    <b>Matching basis:</b> Exact keyword overlap between the query and the document.
+                    <br><br>
+                    <b>Example query:</b> “comfortable shoes for running”
+                    <br><br>
+                    The system searches for words such as <b>comfortable</b>, <b>shoes</b>,
+                    <b>for</b> and <b>running</b>.
+                    <br><br>
+                    <span style="color:#b83232;"><b>Limitations:</b></span>
+                    <ul>
+                        <li>May miss relevant products or documents with different wording.</li>
+                        <li>Depends strongly on exact terms present in the index.</li>
+                        <li>Has limited understanding of user intent and meaning.</li>
+                    </ul>
+                </div>
+            </div>
+            """
+        )
+
+    with right_col:
+        render_html(
+            """
+            <div class="result-card" style="border-left-color:#2f9e68; background:#f4fff8;">
+                <div class="result-title" style="color:#187344; font-size:20px;">
+                    Dense Semantic Search
+                </div>
+                <div class="result-content">
+                    <b>Matching basis:</b> Semantic similarity between dense vector embeddings.
+                    <br><br>
+                    <b>Example query:</b> “comfortable shoes for running”
+                    <br><br>
+                    The model converts the query and documents into numerical vectors and
+                    compares their meaning using cosine similarity.
+                    <br><br>
+                    <span style="color:#187344;"><b>Advantages:</b></span>
+                    <ul>
+                        <li>Finds conceptually similar documents even when wording differs.</li>
+                        <li>Captures contextual meaning and user intent.</li>
+                        <li>Ranks results according to semantic relevance.</li>
+                    </ul>
+                </div>
+            </div>
+            """
+        )
+
+    # ------------------------------------------------------------------
+    # 2. Embedding fundamentals and process
+    # ------------------------------------------------------------------
+    render_html('<div class="content-subheading">What Is an Embedding?</div>')
+    render_html(
         """
-        The model used here, all-MiniLM-L6-v2, is a six-layer transformer that
-        produces a 384-dimensional vector for any input text. Tokens are first
-        embedded and contextualised through self-attention, and the token vectors
-        are then mean pooled into a single sentence vector. The model was trained
-        with a siamese objective on sentence pairs, so that pairs with the same
-        meaning are pulled together in the vector space and unrelated pairs are
-        pushed apart.
+        <div class="content-text">
+            An <b>embedding</b> converts human text into a fixed-length numerical vector
+            so that mathematical algorithms can compare the meaning of different pieces
+            of text. Sentences with similar meanings generally produce vectors that point
+            in similar directions in the learned vector space.
+        </div>
         """
     )
 
-    render_html('<div class="content-subheading">Cosine Similarity</div>')
-    st.write(THEORY_COSINE)
-
-    st.latex(r"\text{Cosine Similarity}(A,B) = \frac{A \cdot B}{\|A\|\|B\|}")
-
-    st.write(
-        """
-        Because every embedding produced in this experiment is normalised to unit
-        length, the denominator becomes one and the similarity reduces to a plain
-        dot product. Comparing a query against the whole collection is therefore a
-        single matrix multiplication, which is why the search takes only a few
-        milliseconds for a few hundred documents.
-        """
-    )
-
-    render_html('<div class="content-subheading">The Two-Stage Retrieval Pipeline</div>')
-
-    st.markdown("**Stage A — Document Indexing (performed once)**")
-    render_pipeline(INDEX_STAGES)
-
-    st.markdown("**Stage B — Query Search (performed per query)**")
-    render_pipeline(QUERY_STAGES)
-
-    render_html('<div class="content-subheading">Important Terms</div>')
-
-    terms = pd.DataFrame(
+    render_pipeline(
         [
-            {"Term": "Embedding", "Meaning": "Numerical vector representation of text."},
-            {"Term": "Dense Vector", "Meaning": "Fixed-length vector whose values are mostly non-zero."},
-            {"Term": "Transformer", "Meaning": "Neural architecture based on self-attention."},
-            {"Term": "Mean Pooling", "Meaning": "Averaging token vectors into one sentence vector."},
-            {"Term": "Embedding Index", "Meaning": "Stored matrix of document embeddings reused for every query."},
-            {"Term": "Cosine Similarity", "Meaning": "Similarity based on the angle between two vectors."},
-            {"Term": "Top-K", "Meaning": "Number of highest ranked documents returned."},
-            {"Term": "Similarity Threshold", "Meaning": "Minimum score a document must reach to be shown."},
-            {"Term": "Vector Database", "Meaning": "System that stores embeddings and serves similarity search."},
-            {"Term": "Semantic Search", "Meaning": "Retrieval based on meaning instead of exact keywords."},
+            "Raw Text",
+            "Tokenization",
+            "Transformer Encoder",
+            "Mean Pooling",
+            "384-D Dense Vector",
         ]
     )
 
+    render_html(
+        """
+        <div class="info-box">
+            <b>Key idea:</b> The same pretrained sentence-transformer model is used for
+            both documents and queries. This places them in a common 384-dimensional
+            vector space where their similarity can be computed directly.
+        </div>
+        """
+    )
+
+    # ------------------------------------------------------------------
+    # 3. Model theory
+    # ------------------------------------------------------------------
+    render_html('<div class="content-subheading">The all-MiniLM-L6-v2 Model</div>')
+    st.markdown(
+        """
+        This experiment uses **all-MiniLM-L6-v2** from the Sentence Transformers
+        library. It is a compact sentence-transformer model that produces a
+        384-dimensional representation for each input text.
+        """
+    )
+
+    model_table = pd.DataFrame(
+        [
+            ["Architecture", "MiniLM (distilled BERT-style Transformer)", "Six Transformer layers with attention"],
+            ["Output dimension", "384", "Each text becomes 384 floating-point values"],
+            ["Training objective", "Sentence-pair similarity learning", "Related sentences are represented closer together"],
+            ["Similarity metric", "Cosine similarity", "Measures the angle between two vectors"],
+            ["Library", "sentence-transformers", "Provides pretrained sentence-embedding models"],
+        ],
+        columns=["Property", "Value", "Description"],
+    )
+    st.dataframe(model_table, use_container_width=True, hide_index=True)
+
+    render_html(
+        """
+        <div class="info-box">
+            <b>Why this model?</b> all-MiniLM-L6-v2 provides compact sentence embeddings
+            that are suitable for interactive experiments because the vectors are small
+            enough to compute quickly while retaining useful semantic information.
+        </div>
+        """
+    )
+
+    # ------------------------------------------------------------------
+    # 4. Dense embeddings and document/query vectors
+    # ------------------------------------------------------------------
+    render_html('<div class="content-subheading">Dense Embeddings</div>')
+    st.markdown(
+        """
+        A **dense embedding** contains mostly non-zero numerical values, unlike sparse
+        representations such as Bag-of-Words or TF-IDF. Dense embeddings are generated
+        by neural networks trained on large text corpora and can capture contextual and
+        conceptual relationships.
+
+        The individual dimensions do not have isolated human-interpretable labels.
+        Instead, semantic meaning emerges from the collective pattern across all
+        384 dimensions.
+        """
+    )
+
+    doc_col, query_col = st.columns(2)
+    with doc_col:
+        render_html(
+            """
+            <div class="result-card">
+                <div class="result-title" style="font-size:19px;">Document Embeddings</div>
+                <div class="result-content">
+                    Each document is encoded into a 384-dimensional vector before retrieval
+                    begins. These vectors form the searchable embedding index and are reused
+                    for future queries.
+                </div>
+            </div>
+            """
+        )
+    with query_col:
+        render_html(
+            """
+            <div class="result-card">
+                <div class="result-title" style="font-size:19px;">Query Embedding</div>
+                <div class="result-content">
+                    Whenever the user enters a query, the same model converts it into a
+                    384-dimensional vector. This query vector is compared with the stored
+                    document vectors using cosine similarity.
+                </div>
+            </div>
+            """
+        )
+
+    # ------------------------------------------------------------------
+    # 5. Figures supplied for the theory section
+    # ------------------------------------------------------------------
+    render_html('<div class="content-subheading">Visual Explanation of the Concept</div>')
+
+    figures = [
+        ("figure1_keyword_vs_semantic.png",
+         "Figure 1: Traditional Keyword Matching vs. Dense Semantic Search in E-Commerce Intent Retrieval"),
+        ("figure2_embedding_process.png",
+         "Figure 2: Text-to-Dense Embedding Process using Pretrained Transformer Models"),
+        ("figure3_cosine_geometry.png",
+         "Figure 3: Geometric Interpretation of Cosine Similarity in High-Dimensional Vector Space"),
+        ("figure4_limitations.png",
+         "Figure 4: Disadvantages and Limitations of Dense Semantic Search"),
+    ]
+
+    for filename, caption in figures:
+        figure_path = THEORY_FIGURE_DIR / filename
+        if figure_path.exists():
+            st.image(str(figure_path), use_container_width=True)
+            st.caption(caption)
+        else:
+            st.warning(f"Theory figure is missing: {figure_path}")
+
+    # ------------------------------------------------------------------
+    # 6. Cosine similarity
+    # ------------------------------------------------------------------
+    render_html('<div class="content-subheading">Cosine Similarity</div>')
+    st.markdown(
+        """
+        Cosine similarity calculates the cosine of the angle θ between a query vector
+        **A** and a document vector **B**. It measures the orientation of the vectors,
+        rather than their absolute magnitude.
+        """
+    )
+    st.latex(r"\text{Cosine Similarity}(A,B) = \frac{A \cdot B}{\|A\|\|B\|} = \cos(\theta)")
+
+    st.markdown(
+        """
+        In this experiment, embeddings are normalised to unit length. Therefore, the
+        denominator becomes one and cosine similarity reduces to the dot product:
+
+        **Similarity(A, B) = A · B**
+        """
+    )
+
+    cosine_table = pd.DataFrame(
+        [
+            ["+1", "Vectors point in the same direction", "Very high semantic similarity"],
+            ["Around 0", "Vectors are approximately orthogonal", "Little or no semantic correlation"],
+            ["-1", "Vectors point in opposite directions", "Opposite orientation in vector space"],
+        ],
+        columns=["Cosine value", "Geometric interpretation", "General meaning"],
+    )
+    st.dataframe(cosine_table, use_container_width=True, hide_index=True)
+
+    # ------------------------------------------------------------------
+    # 7. Retrieval pipeline and ranking
+    # ------------------------------------------------------------------
+    render_html('<div class="content-subheading">The Two-Stage Retrieval Pipeline</div>')
+    st.markdown("**Stage A — Document Indexing (performed once)**")
+    render_pipeline(INDEX_STAGES)
+
+    st.markdown("**Stage B — Query Search (performed for each query)**")
+    render_pipeline(QUERY_STAGES)
+
+    render_html('<div class="content-subheading">Similarity Ranking and Top-K Retrieval</div>')
+    st.markdown(
+        """
+        After cosine similarity is calculated for the query against all candidate
+        documents:
+
+        1. Documents are sorted in descending order of similarity score.
+        2. **Top-K retrieval** selects the K highest-ranked documents.
+        3. The similarity threshold can remove documents whose score is too low.
+
+        **Important distinction:** Top-K represents the number of returned documents,
+        whereas **384** represents the embedding dimension. These are independent
+        parameters.
+        """
+    )
+
+    # ------------------------------------------------------------------
+    # 8. Important terms
+    # ------------------------------------------------------------------
+    render_html('<div class="content-subheading">Important Terms</div>')
+    terms = pd.DataFrame(
+        [
+            ["Embedding", "Numerical vector representation of text."],
+            ["Dense vector", "Fixed-length vector whose values are mostly non-zero."],
+            ["Transformer", "Neural architecture based on self-attention."],
+            ["Mean pooling", "Averaging token vectors into one sentence vector."],
+            ["Embedding index", "Stored matrix of document embeddings reused for every query."],
+            ["Cosine similarity", "Similarity based on the angle between two vectors."],
+            ["Top-K", "Number of highest-ranked documents returned."],
+            ["Similarity threshold", "Minimum score a document must reach to be shown."],
+            ["Vector database", "System that stores embeddings and supports similarity search."],
+            ["Semantic search", "Retrieval based on meaning instead of exact keywords."],
+        ],
+        columns=["Term", "Meaning"],
+    )
     st.dataframe(terms, use_container_width=True, hide_index=True)
 
+    # ------------------------------------------------------------------
+    # 9. Application and limitations
+    # ------------------------------------------------------------------
     render_html('<div class="content-heading">Application</div>')
-
-    st.write(
+    st.markdown(
         """
-        Dense embedding-based retrieval is the backbone of most modern search and
-        assistant systems. The areas below describe where it is used, what problem
-        it solves in that setting, and why a purely keyword based system is not
-        sufficient.
+        Dense embedding-based retrieval is used in modern search and assistant
+        systems. It is useful when the user and the stored content may express
+        the same idea using different words.
         """
     )
 
     for position in range(0, len(APPLICATION_AREAS), 2):
         columns = st.columns(2)
-
         for column, (title, description) in zip(
             columns, APPLICATION_AREAS[position:position + 2]
         ):
             with column:
                 render_html(
                     f"""
-                    <div class="app-card">
-                        <div class="app-card-title">{escape_html(title)}</div>
-                        <div class="app-card-text">{escape_html(description)}</div>
+                    <div class="result-card">
+                        <div class="result-title" style="font-size:19px;">
+                            {escape_html(title)}
+                        </div>
+                        <div class="result-content">
+                            {escape_html(description)}
+                        </div>
                     </div>
                     """
                 )
 
-    render_html('<div class="content-subheading">Practical Limitations</div>')
+    render_html('<div class="content-subheading">Disadvantages and Limitations</div>')
+    limitations = [
+        ("Computational cost", "Generating dense embeddings for large collections requires more computation and may benefit from GPU acceleration."),
+        ("Model dependence", "Retrieval quality depends on the training data, domain suitability and capabilities of the selected embedding model."),
+        ("Semantic ambiguity", "Similar-looking embeddings do not always guarantee that two documents are truly relevant. Polysemous or negated phrases can cause problems."),
+        ("Domain limitations", "A general-purpose model may perform poorly on highly specialised technical, medical, legal or domain-specific content without adaptation."),
+        ("No exact-match guarantee", "Semantic search may miss exact keywords, part numbers, codes, dates or specific acronyms that lexical search can retrieve effectively."),
+    ]
 
-    for limitation in APPLICATION_LIMITATIONS:
-        st.markdown(f"- {limitation}")
+    for title, description in limitations:
+        render_html(
+            f"""
+            <div class="info-box">
+                <b>{escape_html(title)}:</b> {escape_html(description)}
+            </div>
+            """
+        )
 
     render_html(
         """
         <div class="info-box">
-            In production, dense retrieval is usually combined with a lexical
-            ranker such as BM25 and followed by a cross-encoder re-ranker. The
-            dense stage supplies recall, the lexical stage protects exact matches,
-            and the re-ranker sharpens the final order.
+            <b>Practical note:</b> Production retrieval systems often combine dense
+            retrieval with a lexical method such as BM25 and may use a cross-encoder
+            re-ranker. Dense retrieval supports semantic recall, while lexical
+            matching helps preserve exact terms and identifiers.
+        </div>
+        """
+    )
+
+    render_html('<div class="content-subheading">Why Does This Work?</div>')
+    compare_left, compare_right = st.columns(2)
+
+    with compare_left:
+        render_html(
+            """
+            <div class="result-card" style="border-left-color:#f47721;">
+                <div class="result-title" style="font-size:19px;">Traditional Search</div>
+                <div class="result-content">
+                    Text → keyword matching → results
+                    <br><br>
+                    The system may fail when synonyms or paraphrases are used.
+                </div>
+            </div>
+            """
+        )
+
+    with compare_right:
+        render_html(
+            """
+            <div class="result-card" style="border-left-color:#198754;">
+                <div class="result-title" style="font-size:19px;">Semantic Search</div>
+                <div class="result-content">
+                    Text → embeddings → similarity → ranking → results
+                    <br><br>
+                    Related concepts can be represented by vectors that are close
+                    in the learned embedding space.
+                </div>
+            </div>
+            """
+        )
+
+    render_html(
+        """
+        <div class="info-box">
+            <b>Key takeaway:</b> Words are converted into vectors by a pretrained
+            sentence-transformer model. Text with related meaning can be represented
+            by vectors that are closer in the learned embedding space. Retrieval
+            then becomes a vector similarity problem.
         </div>
         """
     )
@@ -3577,9 +3859,9 @@ def render_contributors():
 
     st.markdown(
         """
-**Experiment Developer:** Yash Sharma,Ayush Shelar,Mansi Tahiliani,Varoon Tekwani
+**Experiment Developer:** Student Project Team
 
-**Subject:** KGIRS
+**Subject:** Natural Language Processing
 
 **Technology:** Python, Streamlit and SentenceTransformers
 """
