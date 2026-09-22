@@ -2441,9 +2441,9 @@ def render_breadcrumb():
         <div class="breadcrumb">
             Computer Science and Engineering
             &nbsp;&rsaquo;&nbsp;
-            Natural Language Processing Virtual Laboratory
+            KGIRS Virtual Laboratory
             &nbsp;&rsaquo;&nbsp;
-            Experiments
+            Experiment
         </div>
         """
     )
@@ -3820,13 +3820,47 @@ def render_references():
     render_html('<div class="content-heading">References</div>')
 
     references = [
-        "Sentence Transformers documentation",
-        "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks",
-        "Attention Is All You Need, the original transformer paper",
-        "Scikit-learn cosine similarity documentation",
-        "Introduction to Information Retrieval concepts",
-        "Dense Passage Retrieval and vector search literature",
-    ]
+    {
+        "title": "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks",
+        "authors": "Nils Reimers and Iryna Gurevych | EMNLP-IJCNLP 2019",
+        "url": "https://aclanthology.org/D19-1410/"
+    },
+    {
+        "title": "Dense Passage Retrieval for Open-Domain Question Answering",
+        "authors": "Vladimir Karpukhin et al. | EMNLP 2020",
+        "url": "https://aclanthology.org/2020.emnlp-main.550/"
+    },
+    {
+        "title": "Neural embedding-based indices for semantic search",
+        "authors": "Information Processing & Management, Elsevier",
+        "url": "https://www.sciencedirect.com/science/article/pii/S0306457318302413"
+    },
+    {
+        "title": "A review of ranking approaches for semantic search on Web",
+        "authors": "Information Processing & Management, Elsevier",
+        "url": "https://www.sciencedirect.com/science/article/pii/S0306457313001106"
+    },
+    {
+        "title": "MiniLM: Deep Self-Attention Distillation for Task-Agnostic Compression of Pre-Trained Transformers",
+        "authors": "Wenhui Wang et al. | arXiv 2020",
+        "url": "https://arxiv.org/abs/2002.10957"
+    },
+    {
+        "title": "RocketQA: An Optimized Training Approach to Dense Passage Retrieval for Open-Domain Question Answering",
+        "authors": "Yingqi Qu et al. | NAACL 2021",
+        "url": "https://aclanthology.org/2021.naacl-main.466/"
+    },
+    {
+        "title": "Efficient Passage Retrieval with Hashing for Open-domain Question Answering",
+        "authors": "Ikuya Yamada, Akari Asai, Yusuke Hajishirzi | ACL 2021",
+        "url": "https://aclanthology.org/2021.acl-short.123/"
+    },
+    {
+        "title": "all-MiniLM-L6-v2 Model Documentation",
+        "authors": "Sentence Transformers / Hugging Face | Hugging Face Hub",
+        "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2"
+    }
+]
 
     for index, reference in enumerate(references, start=1):
         st.markdown(f"{index}. {reference}")
@@ -3859,9 +3893,9 @@ def render_contributors():
 
     st.markdown(
         """
-**Experiment Developer:** Student Project Team
+**Experiment Developer:** Yash Sharma,Ayush Shelar,Mansi Tahiliani,Varoon tekwaani
 
-**Subject:** Natural Language Processing
+**Subject:** KGIRS
 
 **Technology:** Python, Streamlit and SentenceTransformers
 """
