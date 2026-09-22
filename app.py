@@ -1,5 +1,6 @@
 import io
 import json
+import random
 import time
 from datetime import datetime
 from pathlib import Path
@@ -2152,11 +2153,11 @@ def initialize_session_state():
         "pretest_submitted": False,
         "pretest_score": 0,
         "pretest_attempted": 0,
+        "pretest_selected": None,
         "posttest_submitted": False,
         "posttest_score": 0,
         "posttest_attempted": 0,
-        "pretest_page": 1,
-        "posttest_page": 1,
+        "posttest_selected": None,
     }
 
     for key, value in defaults.items():
@@ -2348,8 +2349,8 @@ def generate_pdf_report(student_name, roll_number, department, experiment_date, 
         f"Categories: {documents_df['category'].nunique()}",
         f"Embedding Dimension: {st.session_state.last_embedding_dimension or 384}",
         f"Index Status: {'Ready' if st.session_state.index_built else 'Not built'}",
-        f"Pretest Score: {st.session_state.pretest_score}/{len(PRETEST_QUESTIONS)}",
-        f"Posttest Score: {st.session_state.posttest_score}/{len(POSTTEST_QUESTIONS)}",
+        f"Pretest Score: {st.session_state.pretest_score}/{len(st.session_state.pretest_selected or [])}",
+        f"Posttest Score: {st.session_state.posttest_score}/{len(st.session_state.posttest_selected or [])}",
     ]:
         pdf.cell(0, 7, safe_pdf_text(line), ln=True)
 
@@ -2713,54 +2714,65 @@ def render_theory_and_application():
 
 
 # ============================================================
-# QUIZ RENDERING (50 questions per test, 10 per page)
+# QUIZ RENDERING
 # ============================================================
+#
+# Each test has a bank of 50 questions. Every user session draws its own
+# random sample of QUESTIONS_PER_ATTEMPT questions from that bank -- picked
+# once per session and then held fixed in session state, so the same 10
+# questions stay in front of the user while they answer and after they
+# submit, but the next person (a new session) gets a different random 10.
 
-QUESTIONS_PER_PAGE = 10
+QUESTIONS_PER_ATTEMPT = 10
+
+
+def get_quiz_selection(bank, prefix, count=QUESTIONS_PER_ATTEMPT):
+    key = f"{prefix}_selected"
+
+    if not st.session_state.get(key):
+        st.session_state[key] = random.sample(range(len(bank)), min(count, len(bank)))
+
+    return st.session_state[key]
+
+
+def reshuffle_quiz(bank, prefix, count=QUESTIONS_PER_ATTEMPT):
+    for index in st.session_state.get(f"{prefix}_selected") or []:
+        st.session_state.pop(f"{prefix}_answer_{index}", None)
+
+    st.session_state[f"{prefix}_selected"] = random.sample(
+        range(len(bank)), min(count, len(bank))
+    )
+    st.session_state[f"{prefix}_submitted"] = False
+    st.session_state[f"{prefix}_score"] = 0
+    st.session_state[f"{prefix}_attempted"] = 0
 
 
 def render_quiz(bank, prefix, heading, intro):
     render_html(f'<div class="content-heading">{heading}</div>')
     st.write(intro)
 
-    total = len(bank)
-    pages = (total + QUESTIONS_PER_PAGE - 1) // QUESTIONS_PER_PAGE
+    selected = get_quiz_selection(bank, prefix)
+    total = len(selected)
 
     answered = sum(
-        1 for index in range(total) if st.session_state.get(f"{prefix}_answer_{index}")
+        1 for index in selected if st.session_state.get(f"{prefix}_answer_{index}")
     )
 
     render_html(
         f'<div class="quiz-progress">Questions attempted: '
-        f"{answered} of {total}</div>"
+        f"{answered} of {total} (drawn randomly from a bank of {len(bank)})</div>"
     )
 
     st.progress(answered / total)
 
-    page = st.selectbox(
-        "Question set",
-        list(range(1, pages + 1)),
-        index=st.session_state[f"{prefix}_page"] - 1,
-        format_func=lambda p: (
-            f"Questions {(p - 1) * QUESTIONS_PER_PAGE + 1}"
-            f"-{min(p * QUESTIONS_PER_PAGE, total)}"
-        ),
-        key=f"{prefix}_page_select",
-    )
-
-    st.session_state[f"{prefix}_page"] = page
-
-    start = (page - 1) * QUESTIONS_PER_PAGE
-    end = min(start + QUESTIONS_PER_PAGE, total)
-
-    for index in range(start, end):
+    for position, index in enumerate(selected, start=1):
         question = bank[index]
 
         options = question["options"]
         shift = index % len(options)
         ordered = options[shift:] + options[:shift]
 
-        st.markdown(f"**Q{index + 1}. {question['question']}**")
+        st.markdown(f"**Q{position}. {question['question']}**")
 
         st.radio(
             "Select an option:",
@@ -2782,20 +2794,20 @@ def render_quiz(bank, prefix, heading, intro):
 
         st.markdown("---")
 
-    action_col, reset_col = st.columns(2)
+    action_col, reset_col, reshuffle_col = st.columns(3)
 
     with action_col:
         if st.button("Submit and Evaluate", key=f"{prefix}_submit", use_container_width=True):
             score = 0
             attempted = 0
 
-            for index, question in enumerate(bank):
+            for index in selected:
                 chosen = st.session_state.get(f"{prefix}_answer_{index}")
 
                 if chosen is not None:
                     attempted += 1
 
-                    if chosen == question["answer"]:
+                    if chosen == bank[index]["answer"]:
                         score += 1
 
             st.session_state[f"{prefix}_score"] = score
@@ -2803,13 +2815,18 @@ def render_quiz(bank, prefix, heading, intro):
             st.session_state[f"{prefix}_submitted"] = True
 
     with reset_col:
-        if st.button("Clear All Answers", key=f"{prefix}_reset", use_container_width=True):
-            for index in range(total):
+        if st.button("Clear My Answers", key=f"{prefix}_reset", use_container_width=True):
+            for index in selected:
                 st.session_state.pop(f"{prefix}_answer_{index}", None)
 
             st.session_state[f"{prefix}_submitted"] = False
             st.session_state[f"{prefix}_score"] = 0
             st.session_state[f"{prefix}_attempted"] = 0
+
+    with reshuffle_col:
+        if st.button("New Random Set of 10", key=f"{prefix}_reshuffle", use_container_width=True):
+            reshuffle_quiz(bank, prefix)
+            st.rerun()
 
     if st.session_state.get(f"{prefix}_submitted"):
         score = st.session_state[f"{prefix}_score"]
@@ -2832,9 +2849,10 @@ def render_pretest():
         PRETEST_QUESTIONS,
         "pretest",
         "Pretest",
-        "This pretest contains 50 questions covering the basic concepts needed "
-        "before performing the experiment. Questions are shown ten at a time; "
-        "your answers are retained while you move between sets.",
+        f"This pretest draws {QUESTIONS_PER_ATTEMPT} questions at random from a "
+        f"bank of {len(PRETEST_QUESTIONS)}, so different attempts (and different "
+        "users) usually see a different set. Your selection stays fixed for this "
+        "session unless you press \"New Random Set of 10\".",
     )
 
 
@@ -2843,9 +2861,10 @@ def render_posttest():
         POSTTEST_QUESTIONS,
         "posttest",
         "Posttest",
-        "This posttest contains 50 questions on indexing, similarity, ranking, "
-        "evaluation and the practical behaviour you observed in the simulation. "
-        "Attempt all sets and submit to see your score with the correct answers.",
+        f"This posttest draws {QUESTIONS_PER_ATTEMPT} questions at random from a "
+        f"bank of {len(POSTTEST_QUESTIONS)} covering indexing, similarity, ranking, "
+        "evaluation and the behaviour you observed in the simulation. Your selection "
+        "stays fixed for this session unless you press \"New Random Set of 10\".",
     )
 
 
