@@ -2796,11 +2796,11 @@ def render_theory_and_application():
     figures = [
         ("figure1_keyword_vs_semantic.jpeg",
          "Figure 1: Traditional Keyword Matching vs. Dense Semantic Search in E-Commerce Intent Retrieval"),
-        ("figure2_embedding_process.png",
+        ("fig2.jpeg",
          "Figure 2: Text-to-Dense Embedding Process using Pretrained Transformer Models"),
-        ("figure3_cosine_geometry.png",
+        ("fig3.jpeg",
          "Figure 3: Geometric Interpretation of Cosine Similarity in High-Dimensional Vector Space"),
-        ("figure4_limitations.png",
+        ("fig4.jpeg",
          "Figure 4: Disadvantages and Limitations of Dense Semantic Search"),
     ]
 
