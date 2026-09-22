@@ -3577,9 +3577,9 @@ def render_contributors():
 
     st.markdown(
         """
-**Experiment Developer:** Student Project Team
+**Experiment Developer:** Yash Sharma,Ayush Shelar,Mansi Tahiliani,Varoon Tekwani
 
-**Subject:** Natural Language Processing
+**Subject:** KGIRS
 
 **Technology:** Python, Streamlit and SentenceTransformers
 """
