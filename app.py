@@ -2794,7 +2794,7 @@ def render_theory_and_application():
     render_html('<div class="content-subheading">Visual Explanation of the Concept</div>')
 
     figures = [
-        ("figure1_keyword_vs_semantic.png",
+        ("figure1_keyword_vs_semantic.jpeg",
          "Figure 1: Traditional Keyword Matching vs. Dense Semantic Search in E-Commerce Intent Retrieval"),
         ("figure2_embedding_process.png",
          "Figure 2: Text-to-Dense Embedding Process using Pretrained Transformer Models"),
